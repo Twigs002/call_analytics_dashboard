@@ -41,12 +41,18 @@
             margin-bottom: 30px;
         }
 
-        .header h1 {
-            font-family: 'Gotham', sans-serif;
-            font-weight: 700;
-            font-size: 2.5rem;
-            color: #3D5BA6;
-            text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
+        .header img {
+            max-width: 100%;
+            height: auto;
+            max-height: 100px; /* Adjust based on image size */
+            display: block;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .header img {
+                max-height: 80px; /* Smaller size for mobile */
+            }
         }
 
         .nav-bar {
@@ -265,10 +271,6 @@
                 align-items: stretch;
             }
             
-            .header h1 {
-                font-size: 2rem;
-            }
-            
             .nav-bar {
                 flex-direction: column;
                 gap: 10px;
@@ -283,7 +285,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>QUAY 1 INTERNATIONAL REALTY</h1>
+            <img src="https://drive.google.com/uc?export=view&id=1H9IUm1KOyDQDpwPtXeQDtsiX8g2eG6wo" alt="Quay 1 International Realty Logo">
         </div>
         
         <div class="nav-bar">
@@ -346,7 +348,7 @@
         <div class="stats-summary" id="statsSummary">
             <div class="stats-grid" id="statsGrid"></div>
             <div class="month-summary" id="monthSummary">
-                <h3 style="color: #3D5BA6; margin-bottom: 10px; font-family: 'Gotham', sans-serif;">Monthly Summary</h3>
+                <h3 style="color: #3D5BA6; margin-bottom: 10px; font-family: 'Permanent Marker', cursive;">Monthly Summary</h3>
                 <table>
                     <thead>
                         <tr>
@@ -929,7 +931,7 @@
                 let calls = 0, success = 0, declines = 0;
                 Object.values(filteredData).forEach(callerData => {
                     const stats = callerData[period];
-                    if (stats) {
+                    if stats) {
                         calls += stats.calls;
                         success += stats.success;
                         declines += stats.declines;
