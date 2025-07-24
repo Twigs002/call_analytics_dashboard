@@ -305,24 +305,40 @@
         }
 
         function handleFileUpload(file) {
-            if (!file.name.toLowerCase().endsWith('.csv')) {
-                showError('Please upload a CSV file.');
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        showError('Please upload a CSV file.');
+        return;
+    }
+
+    showLoading(true);
+    hideError();
+
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: true,
+        delimiter: "", // Let PapaParse auto-detect the delimiter
+        complete: function(results) {
+            if (results.errors.length > 0) {
+                showError('Error parsing CSV: ' + results.errors.map(e => e.message).join('; '));
+                showLoading(false);
                 return;
             }
-
-            showLoading(true);
-            hideError();
-
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                dynamicTyping: true,
-                complete: function(results) {
-                    if (results.errors.length > 0) {
-                        showError('Error parsing CSV: ' + results.errors[0].message);
-                        showLoading(false);
-                        return;
-                    }
+            if (!results.meta.fields || !results.meta.fields.some(field => field.toLowerCase().trim().includes('call notes'))) {
+                showError('CSV must contain a "Call notes" column.');
+                showLoading(false);
+                return;
+            }
+            csvData = results.data;
+            processData();
+            showLoading(false);
+        },
+        error: function(error) {
+            showError('Error reading file: ' + error.message);
+            showLoading(false);
+        }
+    });
+}
                     
                     csvData = results.data;
                     processData();
