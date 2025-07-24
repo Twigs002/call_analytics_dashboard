@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Analytics Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Gotham', 'Helvetica Neue', Arial, sans-serif;
+            font-weight: 400;
+            background: linear-gradient(135deg, #3d5BA6 0%, #98c5ed 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(61, 91, 166, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #3d5BA6;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            font-family: 'Permanent Marker', cursive;
+            text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
+        }
+
+        .nav-bar {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-bar a {
+            padding: 10px 20px;
+            border: 2px solid #98c5ed;
+            border-radius: 10px;
+            background: white;
+            color: #3d5BA6;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-bar a:hover {
+            background: #FDC503;
+            color: white;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: 2px solid #98c5ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: white;
+            color: #3d5BA6;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 400;
+            margin-bottom: 20px;
+        }
+
+        button:hover {
+            background: #FDC503;
+            color: white;
+        }
+
+        .stats-table {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(61, 91, 166, 0.1);
+        }
+
+        .stats-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .stats-table th, .stats-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #98c5ed;
+        }
+
+        .stats-table th {
+            background: #3d5BA6;
+            color: white;
+            font-weight: 500;
+        }
+
+        .stats-table td {
+            color: #3d5BA6;
+        }
+
+        .error {
+            background: rgba(210, 10, 3, 0.1);
+            color: #d20A03;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            border: 2px solid rgba(210, 10, 3, 0.3);
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .nav-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .stats-table table {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Call Analytics Stats</h1>
+        
+        <div class="nav-bar">
+            <a href="index.html">Dashboard</a>
+            <a href="stats.html">Stats</a>
+        </div>
+
+        <div class="error" id="errorMessage"></div>
+        <button id="clearData">Clear Stored Data</button>
+
+        <div class="stats-table" id="statsTable">
+            <h3 style="color: #3d5BA6; margin-bottom: 10px;">Per-Month Per-Caller Stats</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Caller</th>
+                        <th>Month</th>
+                        <th>Total Calls</th>
+                        <th>Successful Calls</th>
+                        <th>Declined Calls</th>
+                        <th>Success Rate (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="statsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let processedData = JSON.parse(localStorage.getItem('callAnalyticsData')) || {};
+        const errorDiv = document.getElementById('errorMessage');
+        const clearDataButton = document.getElementById('clearData');
+        const statsTableBody = document.getElementById('statsTableBody');
+
+        clearDataButton.addEventListener('click', clearStoredData);
+
+        function clearStoredData() {
+            if (confirm('Are you sure you want to clear all stored data? This cannot be undone.')) {
+                processedData = {};
+                localStorage.removeItem('callAnalyticsData');
+                localStorage.removeItem('importedHashes');
+                statsTableBody.innerHTML = '';
+                document.getElementById('statsTable').style.display = 'none';
+                showError('Stored data cleared. Return to the Dashboard to upload a new CSV.');
+            }
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function updateStatsTable() {
+            if (Object.keys(processedData).length === 0) {
+                showError('No data available. Please upload a CSV file on the Dashboard.');
+                document.getElementById('statsTable').style.display = 'none';
+                return;
+            }
+
+            const rows = [];
+            Object.entries(processedData).forEach(([caller, periods]) => {
+                Object.entries(periods).forEach(([period, stats]) => {
+                    const successRate = stats.calls > 0 ? ((stats.success / stats.calls) * 100).toFixed(1) : 0;
+                    rows.push(`
+                        <tr>
+                            <td>${caller}</td>
+                            <td>${period}</td>
+                            <td>${stats.calls}</td>
+                            <td>${stats.success}</td>
+                            <td>${stats.declines}</td>
+                            <td>${successRate}%</td>
+                        </tr>
+                    `);
+                });
+            });
+
+            statsTableBody.innerHTML = rows.join('');
+            document.getElementById('statsTable').style.display = 'block';
+        }
+
+        // Initialize with stored data
+        updateStatsTable();
+    </script>
+</body>
+</html>
