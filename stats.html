@@ -144,6 +144,7 @@
         <div class="nav-bar">
             <a href="index.html">Dashboard</a>
             <a href="stats.html">Stats</a>
+            <a href="import.html">Import Data</a>
         </div>
 
         <div class="error" id="errorMessage"></div>
@@ -182,7 +183,7 @@
                 localStorage.removeItem('importedHashes');
                 statsTableBody.innerHTML = '';
                 document.getElementById('statsTable').style.display = 'none';
-                showError('Stored data cleared. Return to the Dashboard to upload a new CSV.');
+                showError('Stored data cleared. Visit the Import page to upload a new CSV.');
             }
         }
 
@@ -193,7 +194,7 @@
 
         function updateStatsTable() {
             if (Object.keys(processedData).length === 0) {
-                showError('No data available. Please upload a CSV file on the Dashboard.');
+                showError('No data available. Please visit the Import page to upload a CSV file.');
                 document.getElementById('statsTable').style.display = 'none';
                 return;
             }
@@ -219,7 +220,6 @@
             document.getElementById('statsTable').style.display = 'block';
         }
 
-        // Initialize with stored data
         updateStatsTable();
     </script>
 </body>
