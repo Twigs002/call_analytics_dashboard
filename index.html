@@ -36,10 +36,10 @@
 
         h1 {
             text-align: center;
-            color: #3D5BA6;
+            color: #3d5BA6;
             margin-bottom: 30px;
             font-size: 2.5rem;
-            font-family: 'Gotham', 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Permanent Marker', cursive;
             text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
         }
 
@@ -231,7 +231,7 @@
         
         <div class="upload-section" onclick="document.getElementById('fileInput').click()">
             <div class="upload-text">📂 Click to upload CSV file or drag & drop</div>
-            <div class="upload-hint">Expected format: CSV with "Call notes" column containing call user and result information</div>
+            <div class="upload-hint">Expected format: CSV with "Call notes" and optional "Activity date" column (YYYY-MM-DD HH:MM)</div>
             <input type="file" id="fileInput" accept=".csv" />
         </div>
 
@@ -305,42 +305,32 @@
         }
 
         function handleFileUpload(file) {
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-        showError('Please upload a CSV file.');
-        return;
-    }
-
-    showLoading(true);
-    hideError();
-
-    Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        dynamicTyping: true,
-        delimiter: "", // Let PapaParse auto-detect the delimiter
-        complete: function(results) {
-            if (results.errors.length > 0) {
-                showError('Error parsing CSV: ' + results.errors.map(e => e.message).join('; '));
-                showLoading(false);
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showError('Please upload a CSV file.');
                 return;
             }
-            if (!results.meta.fields || !results.meta.fields.some(field => field.toLowerCase().trim().includes('call notes'))) {
-                showError('CSV must contain a "Call notes" column.');
-                showLoading(false);
-                return;
-            }
-            csvData = results.data;
-            processData();
-            showLoading(false);
-        },
-        error: function(error) {
-            showError('Error reading file: ' + error.message);
-            showLoading(false);
-        }
-    });
-}
-                    
+
+            showLoading(true);
+            hideError();
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                dynamicTyping: true,
+                delimiter: "", // Auto-detect delimiter
+                complete: function(results) {
+                    if (results.errors.length > 0) {
+                        showError('Error parsing CSV: ' + results.errors.map(e => e.message).join('; '));
+                        showLoading(false);
+                        return;
+                    }
+                    if (!results.meta.fields || !results.meta.fields.some(field => field.toLowerCase().trim().includes('call notes'))) {
+                        showError('CSV must contain a "Call notes" column.');
+                        showLoading(false);
+                        return;
+                    }
                     csvData = results.data;
+                    console.log('CSV Data:', csvData);
                     processData();
                     showLoading(false);
                 },
@@ -357,15 +347,18 @@
                 return;
             }
 
-            // Find the call notes column
+            // Find the call notes and date columns
             const headers = Object.keys(csvData[0]);
             let callNotesColumn = null;
+            let dateColumn = null;
             
             for (const header of headers) {
                 const lowerHeader = header.toLowerCase().trim();
                 if (lowerHeader.includes('call notes') || lowerHeader.includes('notes') || lowerHeader.includes('call')) {
                     callNotesColumn = header;
-                    break;
+                }
+                if (lowerHeader.includes('activity date') || lowerHeader.includes('date') || lowerHeader.includes('call date')) {
+                    dateColumn = header;
                 }
             }
 
@@ -381,7 +374,10 @@
             
             csvData.forEach((row, index) => {
                 const callNotes = row[callNotesColumn]?.toString();
-                if (!callNotes) return;
+                if (!callNotes) {
+                    console.warn(`Row ${index + 1}: Empty call notes, skipping.`);
+                    return;
+                }
 
                 try {
                     // Split call notes by 'Dialfire call result' to handle multiple entries
@@ -390,27 +386,44 @@
                     for (const entry of callEntries) {
                         // Extract call user - pattern: "Call user: USERNAME"
                         const userMatch = entry.match(/Call user:\s*([^$\n]+?)(?:\$|Call comment|$)/i);
-                        if (!userMatch) continue;
+                        if (!userMatch) {
+                            console.warn(`Row ${index + 1}: No valid Call user found in entry: ${entry}`);
+                            continue;
+                        }
                         
                         let caller = userMatch[1].trim();
                         
                         // Clean up the caller name - remove @clienthub and similar suffixes
                         caller = caller.replace(/@.*$/, '').replace(/\$.*$/, '').trim();
+                        if (!caller) {
+                            console.warn(`Row ${index + 1}: Invalid caller name after cleaning.`);
+                            continue;
+                        }
                         
                         // Extract call result - pattern: "Dialfire call result: RESULT"
                         const resultMatch = entry.match(/Dialfire call result:\s*([^\/\$\n]+)/i);
-                        if (!resultMatch) continue;
+                        if (!resultMatch) {
+                            console.warn(`Row ${index + 1}: No valid Dialfire call result found in entry: ${entry}`);
+                            continue;
+                        }
                         
                         const result = resultMatch[1].trim().toLowerCase();
                         
-                        // Try to extract date/period
+                        // Extract date from Activity date column
                         let period = 'Current Period';
-                        const dateMatch = entry.match(/(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})|(\w+\s+\d{4})/);
-                        if (dateMatch) {
-                            period = dateMatch[0];
+                        if (dateColumn && row[dateColumn]) {
+                            const date = new Date(row[dateColumn]);
+                            if (!isNaN(date)) {
+                                period = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                            } else {
+                                console.warn(`Row ${index + 1}: Invalid date format in ${dateColumn}: ${row[dateColumn]}`);
+                            }
                         }
 
-                        if (!caller || !result) continue;
+                        if (!caller || !result) {
+                            console.warn(`Row ${index + 1}: Missing caller or result in entry: ${entry}`);
+                            continue;
+                        }
 
                         // Initialize caller data structure
                         if (!processedData[caller]) {
@@ -434,7 +447,6 @@
                         } else if (result.includes('declined') || result.includes('busy') || result.includes('no answer') || result.includes('failed')) {
                             processedData[caller][period].declines += 1;
                         } else {
-                            // For unknown results, categorize as declined
                             processedData[caller][period].declines += 1;
                         }
                         
@@ -446,14 +458,12 @@
                 }
             });
 
+            console.log('Processed Data:', processedData);
+            console.log(`Total Processed: ${totalProcessed}, Errors: ${errorCount}`);
+
             if (Object.keys(processedData).length === 0 || totalProcessed === 0) {
                 showError(`No valid call data found. Processed ${totalProcessed} calls with ${errorCount} errors. Please check that your call notes contain "Call user:" and "Dialfire call result:" patterns.`);
                 return;
-            }
-
-            console.log(`Successfully processed ${totalProcessed} calls for ${Object.keys(processedData).length} callers.`);
-            if (errorCount > 0) {
-                console.warn(`${errorCount} rows had parsing errors.`);
             }
 
             // Show filters and create initial charts
@@ -482,7 +492,7 @@
                 });
             });
 
-            const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls * 100).toFixed(1)) : 0;
+            const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
             statsGrid.innerHTML = `
                 <div class="stat-item">
@@ -493,11 +503,11 @@
                     <div class="stat-value">${totalCalls.toLocaleString()}</div>
                     <div class="stat-label">Total Calls</div>
                 </div>
-                </div class="stat-item">
+                <div class="stat-item">
                     <div class="stat-value">${totalSuccess.toLocaleString()}</div>
                     <div class="stat-label">Successful</div>
                 </div>
-                </div class="stat-item">
+                <div class="stat-item">
                     <div class="stat-value">${successRate}%</div>
                     <div class="stat-label">Success Rate</div>
                 </div>
@@ -540,7 +550,11 @@
                 chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
                 container.appendChild(chartDiv);
 
-                const periodsSorted = Object.keys(periods).sort();
+                const periodsSorted = Object.keys(periods).sort((a, b) => {
+                    const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
+                    const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                    return dateA - dateB;
+                });
                 const data = periodsSorted.map(period => {
                     const p = periods[period];
                     switch(metricType) {
@@ -551,6 +565,8 @@
                         default: return p.calls;
                     }
                 });
+
+                console.log(`Creating chart for ${caller}:`, { labels: periodsSorted, data });
 
                 const ctx = canvas.getContext('2d');
                 charts[chartId] = new Chart(ctx, {
@@ -627,12 +643,15 @@
             Object.values(processedData).forEach(periods => {
                 Object.keys(periods).forEach(period => allPeriods.add(period));
             });
-            const sortedPeriods = Array.from(allPeriods).sort();
+            const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
+                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
+                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                return dateA - dateB;
+            });
 
             // Create datasets for each caller
             const datasets = Object.entries(processedData).map(([caller, periods], index) => {
                 const colors = [
-                    '#3d5BA6', '#FDC503', '#98c5ed', '#d20A03',
                     '#3d5BA6', '#FDC503', '#98c5ed', '#d20A03',
                     '#3d5BA6', '#FDC503', '#98c5ed', '#d20A03'
                 ];
@@ -666,6 +685,8 @@
                     pointRadius: 5
                 };
             });
+
+            console.log('Creating comparison chart:', { labels: sortedPeriods, datasets });
 
             const ctx = canvas.getContext('2d');
             charts[chartId] = new Chart(ctx, {
