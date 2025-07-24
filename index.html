@@ -41,18 +41,12 @@
             margin-bottom: 30px;
         }
 
-        .header img {
-            max-width: 100%;
-            height: auto;
-            max-height: 100px; /* Adjust based on image size */
-            display: block;
-            margin: 0 auto;
-        }
-
-        @media (max-width: 768px) {
-            .header img {
-                max-height: 80px; /* Smaller size for mobile */
-            }
+        .header h1 {
+            font-family: 'Gotham', sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            color: #3D5BA6;
+            text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
         }
 
         .nav-bar {
@@ -271,6 +265,10 @@
                 align-items: stretch;
             }
             
+            .header h1 {
+                font-size: 2rem;
+            }
+            
             .nav-bar {
                 flex-direction: column;
                 gap: 10px;
@@ -285,7 +283,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://drive.google.com/uc?export=view&id=1H9IUm1KOyDQDpwPtXeQDtsiX8g2eG6wo" alt="Quay 1 International Realty Logo">
+            <h1>QUAY 1 INTERNATIONAL REALTY</h1>
         </div>
         
         <div class="nav-bar">
@@ -931,7 +929,7 @@
                 let calls = 0, success = 0, declines = 0;
                 Object.values(filteredData).forEach(callerData => {
                     const stats = callerData[period];
-                    if stats) {
+                    if (stats) {
                         calls += stats.calls;
                         success += stats.success;
                         declines += stats.declines;
