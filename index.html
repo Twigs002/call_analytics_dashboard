@@ -96,7 +96,7 @@
             color: #3d5BA6;
         }
 
-        select {
+        select, button {
             padding: 10px 15px;
             border: 2px solid #98c5ed;
             border-radius: 10px;
@@ -108,10 +108,15 @@
             font-weight: 400;
         }
 
-        select:focus {
+        select:focus, button:focus {
             outline: none;
             border-color: #FDC503;
             box-shadow: 0 0 0 3px rgba(253, 197, 3, 0.2);
+        }
+
+        button:hover {
+            background: #FDC503;
+            color: white;
         }
 
         .charts-grid {
@@ -231,7 +236,7 @@
         
         <div class="upload-section" onclick="document.getElementById('fileInput').click()">
             <div class="upload-text">📂 Click to upload CSV file or drag & drop</div>
-            <div class="upload-hint">Expected format: CSV with "Call notes" and optional "Activity date" column (YYYY-MM-DD HH:MM)</div>
+            <div class="upload-hint">Expected format: CSV with "Call notes" and "Activity date" (YYYY-MM-DD HH:MM). New data will be merged, duplicates skipped.</div>
             <input type="file" id="fileInput" accept=".csv" />
         </div>
 
@@ -246,7 +251,6 @@
                     <option value="comparison">Compare All Callers</option>
                 </select>
             </label>
-            
             <label>
                 <strong>Metric:</strong>
                 <select id="metricType">
@@ -256,6 +260,7 @@
                     <option value="rate">Success Rate %</option>
                 </select>
             </label>
+            <button id="clearData">Clear Stored Data</button>
         </div>
 
         <div class="stats-summary" id="statsSummary">
@@ -267,16 +272,29 @@
 
     <script>
         let csvData = [];
-        let processedData = {};
+        let processedData = JSON.parse(localStorage.getItem('callAnalyticsData')) || {};
+        let importedHashes = new Set(JSON.parse(localStorage.getItem('importedHashes')) || []);
         let charts = {};
+
+        // Simple hash function for duplicate detection
+        function generateHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0; // Convert to 32-bit integer
+            }
+            return hash.toString();
+        }
 
         // File upload handling
         const fileInput = document.getElementById('fileInput');
         const uploadSection = document.querySelector('.upload-section');
         const errorDiv = document.getElementById('errorMessage');
         const loading = document.getElementById('loading');
+        const clearDataButton = document.getElementById('clearData');
 
         fileInput.addEventListener('change', handleFile);
+        clearDataButton.addEventListener('click', clearStoredData);
 
         // Drag and drop
         uploadSection.addEventListener('dragover', (e) => {
@@ -368,14 +386,22 @@
             }
 
             // Process the data by parsing call notes
-            processedData = {};
             let totalProcessed = 0;
             let errorCount = 0;
-            
+            let duplicatesSkipped = 0;
+
             csvData.forEach((row, index) => {
                 const callNotes = row[callNotesColumn]?.toString();
                 if (!callNotes) {
                     console.warn(`Row ${index + 1}: Empty call notes, skipping.`);
+                    return;
+                }
+
+                // Generate hash for duplicate detection
+                const rowHash = generateHash(`${row[dateColumn] || ''}|${callNotes}`);
+                if (importedHashes.has(rowHash)) {
+                    console.log(`Row ${index + 1}: Duplicate detected, skipping.`);
+                    duplicatesSkipped++;
                     return;
                 }
 
@@ -450,6 +476,8 @@
                             processedData[caller][period].declines += 1;
                         }
                         
+                        // Store hash to prevent future duplicates
+                        importedHashes.add(rowHash);
                         totalProcessed++;
                     }
                 } catch (error) {
@@ -458,11 +486,15 @@
                 }
             });
 
+            // Save data to localStorage
+            localStorage.setItem('callAnalyticsData', JSON.stringify(processedData));
+            localStorage.setItem('importedHashes', JSON.stringify(Array.from(importedHashes)));
+
             console.log('Processed Data:', processedData);
-            console.log(`Total Processed: ${totalProcessed}, Errors: ${errorCount}`);
+            console.log(`Total Processed: ${totalProcessed}, Errors: ${errorCount}, Duplicates Skipped: ${duplicatesSkipped}`);
 
             if (Object.keys(processedData).length === 0 || totalProcessed === 0) {
-                showError(`No valid call data found. Processed ${totalProcessed} calls with ${errorCount} errors. Please check that your call notes contain "Call user:" and "Dialfire call result:" patterns.`);
+                showError(`No new valid call data found. Processed ${totalProcessed} calls with ${errorCount} errors and ${duplicatesSkipped} duplicates skipped.`);
                 return;
             }
 
@@ -476,6 +508,21 @@
             // Add event listeners for filters
             document.getElementById('viewType').addEventListener('change', createCharts);
             document.getElementById('metricType').addEventListener('change', createCharts);
+        }
+
+        function clearStoredData() {
+            if (confirm('Are you sure you want to clear all stored data? This cannot be undone.')) {
+                processedData = {};
+                importedHashes = new Set();
+                localStorage.removeItem('callAnalyticsData');
+                localStorage.removeItem('importedHashes');
+                document.getElementById('filters').style.display = 'none';
+                document.getElementById('statsSummary').style.display = 'none';
+                document.getElementById('chartsContainer').innerHTML = '';
+                Object.values(charts).forEach(chart => chart.destroy());
+                charts = {};
+                showError('Stored data cleared. Upload a new CSV to start fresh.');
+            }
         }
 
         function updateStats() {
@@ -755,6 +802,14 @@
 
         function showLoading(show) {
             loading.style.display = show ? 'block' : 'none';
+        }
+
+        // Initialize with stored data if available
+        if (Object.keys(processedData).length > 0) {
+            document.getElementById('filters').style.display = 'flex';
+            document.getElementById('statsSummary').style.display = 'block';
+            updateStats();
+            createCharts();
         }
     </script>
 </body>
