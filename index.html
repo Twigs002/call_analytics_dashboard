@@ -83,6 +83,7 @@
             gap: 15px;
             margin-bottom: 30px;
             flex-wrap: wrap;
+            justify-content: center;
             align-items: center;
         }
 
@@ -170,7 +171,6 @@
             border-radius: 15px;
             padding: 20px;
             margin-bottom: 30px;
-            display: none;
             box-shadow: 0 8px 25px rgba(61, 91, 166, 0.2);
         }
 
@@ -346,9 +346,10 @@
                 </select>
             </label>
             <button id="clearData"><i class="fas fa-trash"></i> Clear Stored Data</button>
+            <button id="toggleReports" style="display: none;"><i class="fas fa-lock"></i> Toggle Reports</button>
         </div>
 
-        <div class="stats-summary" id="statsSummary" style="display: none;">
+        <div class="stats-summary" id="statsSummary">
             <div class="stats-grid" id="statsGrid"></div>
             <div class="month-summary" id="monthSummary">
                 <h3 style="color: #3D5BA6; margin-bottom: 10px; font-family: 'Permanent Marker', cursive;">Monthly Summary</h3>
@@ -373,6 +374,7 @@
     <script>
         let processedData = JSON.parse(localStorage.getItem('callAnalyticsData')) || {};
         let charts = {};
+        let reportsEnabled = true; // Placeholder for report visibility
 
         const viewReportsButton = document.getElementById('viewReports');
         const errorDiv = document.getElementById('errorMessage');
@@ -384,6 +386,7 @@
         const startMonthSelect = document.getElementById('startMonth');
         const endMonthSelect = document.getElementById('endMonth');
         const callerFilterSelect = document.getElementById('callerFilter');
+        const toggleReportsButton = document.getElementById('toggleReports');
 
         viewReportsButton.addEventListener('click', showReports);
         clearDataButton.addEventListener('click', clearStoredData);
@@ -392,11 +395,21 @@
         monthFilterSelect.addEventListener('change', createCharts);
         startMonthSelect.addEventListener('change', createCharts);
         endMonthSelect.addEventListener('change', createCharts);
-        callerFilterSelect.addEventListener('change', createCharts);
+        toggleReportsButton.addEventListener('click', toggleReports);
+
+        // Check for admin mode via query parameter (placeholder)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('admin') === 'true') {
+            toggleReportsButton.style.display = 'block';
+        }
 
         function showReports() {
             if (Object.keys(processedData).length === 0) {
                 showError('No data available. Please visit the Import page to upload a CSV file.');
+                return;
+            }
+            if (!reportsEnabled) {
+                showError('Reports are disabled for this user.');
                 return;
             }
 
@@ -406,6 +419,20 @@
             updateFilters();
             updateStats();
             createCharts();
+        }
+
+        function toggleReports() {
+            reportsEnabled = !reportsEnabled;
+            if (!reportsEnabled) {
+                document.getElementById('filters').style.display = 'none';
+                document.getElementById('statsSummary').style.display = 'none';
+                document.getElementById('chartsContainer').innerHTML = '';
+                Object.values(charts).forEach(chart => chart.destroy());
+                charts = {};
+                showError('Reports disabled.');
+            } else {
+                showReports();
+            }
         }
 
         function clearStoredData() {
@@ -476,6 +503,13 @@
                 filteredData = { [callerFilter]: processedData[callerFilter] || {} };
             }
 
+            if (Object.keys(filteredData).length === 0) {
+                statsGrid.innerHTML = '<div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">No Data Available</div></div>';
+                monthSummaryTable.innerHTML = '';
+                document.getElementById('monthSummary').style.display = 'none';
+                return;
+            }
+
             const totalCallers = Object.keys(filteredData).length;
             let totalCalls = 0, totalSuccess = 0, totalDeclines = 0;
             const monthTotals = {};
@@ -496,7 +530,9 @@
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
+            // Top performer: highest total calls, with success rate as tiebreaker
             let topCaller = null;
+            let maxCalls = -1;
             let maxSuccessRate = -1;
             Object.entries(filteredData).forEach(([caller, periods]) => {
                 let callerCalls = 0, callerSuccess = 0;
@@ -505,7 +541,8 @@
                     callerSuccess += stats.success;
                 });
                 const callerRate = callerCalls > 0 ? (callerSuccess / callerCalls * 100) : 0;
-                if (callerRate > maxSuccessRate && callerCalls >= 5) {
+                if (callerCalls > maxCalls || (callerCalls === maxCalls && callerRate > maxSuccessRate)) {
+                    maxCalls = callerCalls;
                     maxSuccessRate = callerRate;
                     topCaller = caller;
                 }
@@ -558,6 +595,11 @@
         }
 
         function createCharts() {
+            if (!reportsEnabled) {
+                showError('Reports are disabled for this user.');
+                return;
+            }
+
             const container = document.getElementById('chartsContainer');
             const viewType = viewTypeSelect.value;
             const metricType = metricTypeSelect.value;
@@ -1084,6 +1126,8 @@
             showReports();
         } else {
             viewReportsButton.style.display = 'block';
+            document.getElementById('statsSummary').style.display = 'none';
+            showError('No data available. Please visit the Import page to upload a CSV file.');
         }
     </script>
 </body>
