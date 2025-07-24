@@ -39,8 +39,31 @@
             color: #3d5BA6;
             margin-bottom: 30px;
             font-size: 2.5rem;
-            font-family: 'Gotham', 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Permanent Marker', cursive;
             text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
+        }
+
+        .nav-bar {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-bar a {
+            padding: 10px 20px;
+            border: 2px solid #98c5ed;
+            border-radius: 10px;
+            background: white;
+            color: #3d5BA6;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-bar a:hover {
+            background: #FDC503;
+            color: white;
         }
 
         .upload-section {
@@ -194,6 +217,36 @@
             font-weight: 400;
         }
 
+        .month-summary {
+            margin-top: 20px;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(61, 91, 166, 0.1);
+            display: none;
+        }
+
+        .month-summary table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .month-summary th, .month-summary td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #98c5ed;
+        }
+
+        .month-summary th {
+            background: #3d5BA6;
+            color: white;
+            font-weight: 500;
+        }
+
+        .month-summary td {
+            color: #3d5BA6;
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -227,6 +280,15 @@
             h1 {
                 font-size: 2rem;
             }
+            
+            .nav-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .month-summary table {
+                font-size: 0.9rem;
+            }
         }
     </style>
 </head>
@@ -234,12 +296,18 @@
     <div class="container">
         <h1>📊 Call Analytics Dashboard</h1>
         
-        <div class="upload-section" onclick="document.getElementById('fileInput').click()">
+        <div class="nav-bar">
+            <a href="index.html">Dashboard</a>
+            <a href="stats.html">Stats</a>
+        </div>
+
+        <div class="upload-section" id="uploadSection" onclick="document.getElementById('fileInput').click()">
             <div class="upload-text">📂 Click to upload CSV file or drag & drop</div>
             <div class="upload-hint">Expected format: CSV with "Call notes" and "Activity date" (YYYY-MM-DD HH:MM). New data will be merged, duplicates skipped.</div>
             <input type="file" id="fileInput" accept=".csv" />
         </div>
 
+        <button id="viewReports" style="display: none;">View Reports</button>
         <div class="error" id="errorMessage"></div>
         <div class="loading" id="loading">Processing your data...</div>
 
@@ -249,6 +317,7 @@
                 <select id="viewType">
                     <option value="individual">Individual Callers</option>
                     <option value="comparison">Compare All Callers</option>
+                    <option value="trend">Monthly Trend</option>
                 </select>
             </label>
             <label>
@@ -260,11 +329,45 @@
                     <option value="rate">Success Rate %</option>
                 </select>
             </label>
+            <label>
+                <strong>Month:</strong>
+                <select id="monthFilter">
+                    <option value="all">All Months</option>
+                </select>
+            </label>
+            <label>
+                <strong>Start Month:</strong>
+                <select id="startMonth">
+                    <option value="all">Any</option>
+                </select>
+            </label>
+            <label>
+                <strong>End Month:</strong>
+                <select id="endMonth">
+                    <option value="all">Any</option>
+                </select>
+            </label>
+            <button id="exportReport">Export Report</button>
             <button id="clearData">Clear Stored Data</button>
         </div>
 
-        <div class="stats-summary" id="statsSummary">
+        <div class="stats-summary" id="statsSummary" style="display: none;">
             <div class="stats-grid" id="statsGrid"></div>
+            <div class="month-summary" id="monthSummary">
+                <h3 style="color: #3d5BA6; margin-bottom: 10px;">Monthly Summary</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Total Calls</th>
+                            <th>Successful Calls</th>
+                            <th>Declined Calls</th>
+                            <th>Success Rate (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthSummaryTable"></tbody>
+                </table>
+            </div>
         </div>
 
         <div class="charts-grid" id="chartsContainer"></div>
@@ -288,13 +391,27 @@
 
         // File upload handling
         const fileInput = document.getElementById('fileInput');
-        const uploadSection = document.querySelector('.upload-section');
+        const uploadSection = document.getElementById('uploadSection');
+        const viewReportsButton = document.getElementById('viewReports');
         const errorDiv = document.getElementById('errorMessage');
         const loading = document.getElementById('loading');
         const clearDataButton = document.getElementById('clearData');
+        const exportReportButton = document.getElementById('exportReport');
+        const viewTypeSelect = document.getElementById('viewType');
+        const metricTypeSelect = document.getElementById('metricType');
+        const monthFilterSelect = document.getElementById('monthFilter');
+        const startMonthSelect = document.getElementById('startMonth');
+        const endMonthSelect = document.getElementById('endMonth');
 
         fileInput.addEventListener('change', handleFile);
         clearDataButton.addEventListener('click', clearStoredData);
+        exportReportButton.addEventListener('click', exportReport);
+        viewReportsButton.addEventListener('click', showReports);
+        viewTypeSelect.addEventListener('change', createCharts);
+        metricTypeSelect.addEventListener('change', createCharts);
+        monthFilterSelect.addEventListener('change', createCharts);
+        startMonthSelect.addEventListener('change', createCharts);
+        endMonthSelect.addEventListener('change', createCharts);
 
         // Drag and drop
         uploadSection.addEventListener('dragover', (e) => {
@@ -498,16 +615,22 @@
                 return;
             }
 
-            // Show filters and create initial charts
+            showReports();
+        }
+
+        function showReports() {
+            if (Object.keys(processedData).length === 0) {
+                showError('No data available. Please upload a CSV file.');
+                return;
+            }
+
+            uploadSection.style.display = 'none';
+            viewReportsButton.style.display = 'none';
             document.getElementById('filters').style.display = 'flex';
             document.getElementById('statsSummary').style.display = 'block';
-            
+            updateFilters();
             updateStats();
             createCharts();
-
-            // Add event listeners for filters
-            document.getElementById('viewType').addEventListener('change', createCharts);
-            document.getElementById('metricType').addEventListener('change', createCharts);
         }
 
         function clearStoredData() {
@@ -519,23 +642,83 @@
                 document.getElementById('filters').style.display = 'none';
                 document.getElementById('statsSummary').style.display = 'none';
                 document.getElementById('chartsContainer').innerHTML = '';
+                document.getElementById('monthSummary').style.display = 'none';
+                uploadSection.style.display = 'block';
+                viewReportsButton.style.display = Object.keys(processedData).length > 0 ? 'block' : 'none';
                 Object.values(charts).forEach(chart => chart.destroy());
                 charts = {};
                 showError('Stored data cleared. Upload a new CSV to start fresh.');
             }
         }
 
+        function updateFilters() {
+            const allPeriods = new Set();
+            Object.values(processedData).forEach(periods => {
+                Object.keys(periods).forEach(period => allPeriods.add(period));
+            });
+            const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
+                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
+                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                return dateA - dateB;
+            });
+
+            monthFilterSelect.innerHTML = '<option value="all">All Months</option>';
+            startMonthSelect.innerHTML = '<option value="all">Any</option>';
+            endMonthSelect.innerHTML = '<option value="all">Any</option>';
+
+            sortedPeriods.forEach(period => {
+                const option = document.createElement('option');
+                option.value = period;
+                option.textContent = period;
+                monthFilterSelect.appendChild(option);
+                startMonthSelect.appendChild(option.cloneNode(true));
+                endMonthSelect.appendChild(option.cloneNode(true));
+            });
+        }
+
+        function exportReport() {
+            const headers = ['Caller', 'Month', 'Total Calls', 'Successful Calls', 'Declined Calls', 'Success Rate (%)'];
+            const rows = [];
+
+            Object.entries(processedData).forEach(([caller, periods]) => {
+                Object.entries(periods).forEach(([period, stats]) => {
+                    const successRate = stats.calls > 0 ? ((stats.success / stats.calls) * 100).toFixed(1) : 0;
+                    rows.push([caller, period, stats.calls, stats.success, stats.declines, successRate]);
+                });
+            });
+
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'call_analytics_report.csv';
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
         function updateStats() {
             const statsGrid = document.getElementById('statsGrid');
+            const monthSummaryTable = document.getElementById('monthSummaryTable');
             const totalCallers = Object.keys(processedData).length;
             
             let totalCalls = 0, totalSuccess = 0, totalDeclines = 0;
-            
+            const monthTotals = {};
+
             Object.values(processedData).forEach(callerData => {
-                Object.values(callerData).forEach(period => {
-                    totalCalls += period.calls;
-                    totalSuccess += period.success;
-                    totalDeclines += period.declines;
+                Object.entries(callerData).forEach(([period, stats]) => {
+                    if (!monthTotals[period]) {
+                        monthTotals[period] = { calls: 0, success: 0, declines: 0 };
+                    }
+                    monthTotals[period].calls += stats.calls;
+                    monthTotals[period].success += stats.success;
+                    monthTotals[period].declines += stats.declines;
+                    totalCalls += stats.calls;
+                    totalSuccess += stats.success;
+                    totalDeclines += stats.declines;
                 });
             });
 
@@ -559,26 +742,81 @@
                     <div class="stat-label">Success Rate</div>
                 </div>
             `;
+
+            // Update monthly summary table
+            const sortedPeriods = Object.keys(monthTotals).sort((a, b) => {
+                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
+                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                return dateA - dateB;
+            });
+
+            monthSummaryTable.innerHTML = sortedPeriods.map(period => {
+                const stats = monthTotals[period];
+                const successRate = stats.calls > 0 ? ((stats.success / stats.calls) * 100).toFixed(1) : 0;
+                return `
+                    <tr>
+                        <td>${period}</td>
+                        <td>${stats.calls}</td>
+                        <td>${stats.success}</td>
+                        <td>${stats.declines}</td>
+                        <td>${successRate}%</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('monthSummary').style.display = sortedPeriods.length > 0 ? 'block' : 'none';
         }
 
         function createCharts() {
             const container = document.getElementById('chartsContainer');
-            const viewType = document.getElementById('viewType').value;
-            const metricType = document.getElementById('metricType').value;
+            const viewType = viewTypeSelect.value;
+            const metricType = metricTypeSelect.value;
+            const selectedMonth = monthFilterSelect.value;
+            const startMonth = startMonthSelect.value;
+            const endMonth = endMonthSelect.value;
 
             // Clear existing charts
             Object.values(charts).forEach(chart => chart.destroy());
             charts = {};
             container.innerHTML = '';
 
+            // Get filtered periods
+            const allPeriods = new Set();
+            Object.values(processedData).forEach(periods => {
+                Object.keys(periods).forEach(period => allPeriods.add(period));
+            });
+            let filteredPeriods = Array.from(allPeriods).sort((a, b) => {
+                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
+                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                return dateA - dateB;
+            });
+
+            if (selectedMonth !== 'all') {
+                filteredPeriods = filteredPeriods.filter(period => period === selectedMonth);
+            } else if (startMonth !== 'all' || endMonth !== 'all') {
+                const startDate = startMonth === 'all' ? new Date(0) : new Date(startMonth);
+                const endDate = endMonth === 'all' ? new Date('9999-12-31') : new Date(endMonth);
+                filteredPeriods = filteredPeriods.filter(period => {
+                    const periodDate = period === 'Current Period' ? new Date(0) : new Date(period);
+                    return periodDate >= startDate && periodDate <= endDate;
+                });
+            }
+
+            if (filteredPeriods.length === 0) {
+                showError('No data available for the selected month or date range.');
+                return;
+            }
+
             if (viewType === 'individual') {
-                createIndividualCharts(metricType);
-            } else {
-                createComparisonChart(metricType);
+                createIndividualCharts(metricType, filteredPeriods);
+            } else if (viewType === 'comparison') {
+                createComparisonChart(metricType, filteredPeriods);
+            } else if (viewType === 'trend') {
+                createTrendChart(metricType, filteredPeriods);
             }
         }
 
-        function createIndividualCharts(metricType) {
+        function createIndividualCharts(metricType, filteredPeriods) {
             const container = document.getElementById('chartsContainer');
 
             Object.entries(processedData).forEach(([caller, periods]) => {
@@ -597,13 +835,9 @@
                 chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
                 container.appendChild(chartDiv);
 
-                const periodsSorted = Object.keys(periods).sort((a, b) => {
-                    const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
-                    const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
-                    return dateA - dateB;
-                });
-                const data = periodsSorted.map(period => {
+                const data = filteredPeriods.map(period => {
                     const p = periods[period];
+                    if (!p) return null;
                     switch(metricType) {
                         case 'calls': return p.calls;
                         case 'success': return p.success;
@@ -613,13 +847,13 @@
                     }
                 });
 
-                console.log(`Creating chart for ${caller}:`, { labels: periodsSorted, data });
+                console.log(`Creating chart for ${caller}:`, { labels: filteredPeriods, data });
 
                 const ctx = canvas.getContext('2d');
                 charts[chartId] = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: periodsSorted,
+                        labels: filteredPeriods,
                         datasets: [{
                             label: getMetricLabel(metricType),
                             data: data,
@@ -666,7 +900,7 @@
             });
         }
 
-        function createComparisonChart(metricType) {
+        function createComparisonChart(metricType, filteredPeriods) {
             const container = document.getElementById('chartsContainer');
             
             const chartDiv = document.createElement('div');
@@ -685,18 +919,6 @@
             chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
             container.appendChild(chartDiv);
 
-            // Get all unique periods
-            const allPeriods = new Set();
-            Object.values(processedData).forEach(periods => {
-                Object.keys(periods).forEach(period => allPeriods.add(period));
-            });
-            const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
-                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
-                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
-                return dateA - dateB;
-            });
-
-            // Create datasets for each caller
             const datasets = Object.entries(processedData).map(([caller, periods], index) => {
                 const colors = [
                     '#3d5BA6', '#FDC503', '#98c5ed', '#d20A03',
@@ -705,7 +927,7 @@
                 
                 const color = colors[index % colors.length];
                 
-                const data = sortedPeriods.map(period => {
+                const data = filteredPeriods.map(period => {
                     const p = periods[period];
                     if (!p) return null;
                     
@@ -733,13 +955,13 @@
                 };
             });
 
-            console.log('Creating comparison chart:', { labels: sortedPeriods, datasets });
+            console.log('Creating comparison chart:', { labels: filteredPeriods, datasets });
 
             const ctx = canvas.getContext('2d');
             charts[chartId] = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: sortedPeriods,
+                    labels: filteredPeriods,
                     datasets: datasets
                 },
                 options: {
@@ -781,6 +1003,100 @@
             });
         }
 
+        function createTrendChart(metricType, filteredPeriods) {
+            const container = document.getElementById('chartsContainer');
+            
+            const chartDiv = document.createElement('div');
+            chartDiv.className = 'chart-container';
+            chartDiv.style.gridColumn = '1 / -1'; // Full width
+            
+            const canvas = document.createElement('canvas');
+            const chartId = 'trend-chart';
+            canvas.id = chartId;
+
+            chartDiv.innerHTML = `
+                <div class="chart-title">Monthly Trend - ${getMetricLabel(metricType)}</div>
+                <div class="chart-wrapper"></div>
+            `;
+            
+            chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
+            container.appendChild(chartDiv);
+
+            const data = filteredPeriods.map(period => {
+                let total = 0;
+                let totalCalls = 0;
+                Object.values(processedData).forEach(callerData => {
+                    const stats = callerData[period];
+                    if (stats) {
+                        switch(metricType) {
+                            case 'calls': total += stats.calls; break;
+                            case 'success': total += stats.success; break;
+                            case 'declines': total += stats.declines; break;
+                            case 'rate':
+                                totalCalls += stats.calls;
+                                total += stats.success;
+                                break;
+                        }
+                    }
+                });
+                if (metricType === 'rate') {
+                    return totalCalls > 0 ? (total / totalCalls * 100) : 0;
+                }
+                return total;
+            });
+
+            console.log('Creating trend chart:', { labels: filteredPeriods, data });
+
+            const ctx = canvas.getContext('2d');
+            charts[chartId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: filteredPeriods,
+                    datasets: [{
+                        label: getMetricLabel(metricType),
+                        data: data,
+                        borderColor: '#3d5BA6',
+                        backgroundColor: 'rgba(61, 91, 166, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#FDC503',
+                        pointBorderColor: '#3d5BA6',
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(152, 197, 237, 0.3)'
+                            },
+                            ticks: {
+                                color: '#3d5BA6'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(152, 197, 237, 0.3)'
+                            },
+                            ticks: {
+                                color: '#3d5BA6'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         function getMetricLabel(metricType) {
             switch(metricType) {
                 case 'calls': return 'Total Calls';
@@ -806,10 +1122,10 @@
 
         // Initialize with stored data if available
         if (Object.keys(processedData).length > 0) {
-            document.getElementById('filters').style.display = 'flex';
-            document.getElementById('statsSummary').style.display = 'block';
-            updateStats();
-            createCharts();
+            viewReportsButton.style.display = 'block';
+            uploadSection.style.display = 'block';
+            updateFilters();
+            showReports();
         }
     </script>
 </body>
