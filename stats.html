@@ -23,7 +23,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
@@ -37,7 +37,7 @@
             color: #3d5BA6;
             margin-bottom: 30px;
             font-size: 2.5rem;
-            font-family: 'Permanent Marker', cursive;
+            font-family: 'Gotham', 'Helvetica Neue', Arial, sans-serif;
             text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
         }
 
@@ -64,7 +64,21 @@
             color: white;
         }
 
-        button {
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .filters label {
+            font-weight: 500;
+            color: #3d5BA6;
+        }
+
+        select {
             padding: 10px 15px;
             border: 2px solid #98c5ed;
             border-radius: 10px;
@@ -74,30 +88,28 @@
             cursor: pointer;
             transition: all 0.3s ease;
             font-weight: 400;
-            margin-bottom: 20px;
         }
 
-        button:hover {
-            background: #FDC503;
-            color: white;
+        select:focus {
+            outline: none;
+            border-color: #FDC503;
+            box-shadow: 0 0 0 3px rgba(253, 197, 3, 0.2);
         }
 
         .stats-table {
+            width: 100%;
+            border-collapse: collapse;
             background: white;
             border-radius: 15px;
-            padding: 20px;
+            overflow: hidden;
             box-shadow: 0 8px 25px rgba(61, 91, 166, 0.1);
         }
 
-        .stats-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
         .stats-table th, .stats-table td {
-            padding: 10px;
+            padding: 15px;
             text-align: left;
             border-bottom: 1px solid #98c5ed;
+            color: #3d5BA6;
         }
 
         .stats-table th {
@@ -106,8 +118,12 @@
             font-weight: 500;
         }
 
-        .stats-table td {
-            color: #3d5BA6;
+        .stats-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .stats-table tr:hover {
+            background: rgba(152, 197, 237, 0.1);
         }
 
         .error {
@@ -119,27 +135,46 @@
             display: none;
             border: 2px solid rgba(210, 10, 3, 0.3);
             font-weight: 500;
+            text-align: center;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            color: #3d5BA6;
+            display: none;
+            font-weight: 500;
         }
 
         @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
             h1 {
                 font-size: 2rem;
             }
-            
+
             .nav-bar {
                 flex-direction: column;
                 gap: 10px;
             }
 
-            .stats-table table {
+            .stats-table {
                 font-size: 0.9rem;
+            }
+
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📊 Call Analytics Stats</h1>
+        <h1>📈 Call Analytics Stats</h1>
         
         <div class="nav-bar">
             <a href="index.html">Dashboard</a>
@@ -148,79 +183,143 @@
         </div>
 
         <div class="error" id="errorMessage"></div>
-        <button id="clearData">Clear Stored Data</button>
+        <div class="loading" id="loading">Loading stats...</div>
 
-        <div class="stats-table" id="statsTable">
-            <h3 style="color: #3d5BA6; margin-bottom: 10px;">Per-Month Per-Caller Stats</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Caller</th>
-                        <th>Month</th>
-                        <th>Total Calls</th>
-                        <th>Successful Calls</th>
-                        <th>Declined Calls</th>
-                        <th>Success Rate (%)</th>
-                    </tr>
-                </thead>
-                <tbody id="statsTableBody"></tbody>
-            </table>
+        <div class="filters" id="filters" style="display: none;">
+            <label>
+                <strong>Month:</strong>
+                <select id="monthFilter">
+                    <option value="all">All Months</option>
+                </select>
+            </label>
         </div>
+
+        <table class="stats-table" id="statsTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Caller</th>
+                    <th>Month</th>
+                    <th>Total Calls</th>
+                    <th>Successful Calls</th>
+                    <th>Declined Calls</th>
+                    <th>Success Rate (%)</th>
+                </tr>
+            </thead>
+            <tbody id="statsBody"></tbody>
+        </table>
     </div>
 
     <script>
-        let processedData = JSON.parse(localStorage.getItem('callAnalyticsData')) || {};
         const errorDiv = document.getElementById('errorMessage');
-        const clearDataButton = document.getElementById('clearData');
-        const statsTableBody = document.getElementById('statsTableBody');
+        const loading = document.getElementById('loading');
+        const statsTable = document.getElementById('statsTable');
+        const statsBody = document.getElementById('statsBody');
+        const monthFilterSelect = document.getElementById('monthFilter');
+        const filtersDiv = document.getElementById('filters');
 
-        clearDataButton.addEventListener('click', clearStoredData);
-
-        function clearStoredData() {
-            if (confirm('Are you sure you want to clear all stored data? This cannot be undone.')) {
-                processedData = {};
-                localStorage.removeItem('callAnalyticsData');
-                localStorage.removeItem('importedHashes');
-                statsTableBody.innerHTML = '';
-                document.getElementById('statsTable').style.display = 'none';
-                showError('Stored data cleared. Visit the Import page to upload a new CSV.');
-            }
-        }
+        monthFilterSelect.addEventListener('change', updateTable);
 
         function showError(message) {
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
+            statsTable.style.display = 'none';
+            filtersDiv.style.display = 'none';
         }
 
-        function updateStatsTable() {
-            if (Object.keys(processedData).length === 0) {
+        function showLoading(show) {
+            loading.style.display = show ? 'block' : 'none';
+        }
+
+        function populateMonthFilter(data) {
+            const allPeriods = new Set();
+            Object.values(data).forEach(periods => {
+                Object.keys(periods).forEach(period => allPeriods.add(period));
+            });
+            const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
+                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
+                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                return dateA - dateB;
+            });
+
+            monthFilterSelect.innerHTML = '<option value="all">All Months</option>';
+            sortedPeriods.forEach(period => {
+                const option = document.createElement('option');
+                option.value = period;
+                option.textContent = period;
+                monthFilterSelect.appendChild(option);
+            });
+        }
+
+        function updateTable() {
+            const data = JSON.parse(localStorage.getItem('callAnalyticsData')) || {};
+            const selectedMonth = monthFilterSelect.value;
+
+            if (Object.keys(data).length === 0) {
                 showError('No data available. Please visit the Import page to upload a CSV file.');
-                document.getElementById('statsTable').style.display = 'none';
                 return;
             }
 
-            const rows = [];
-            Object.entries(processedData).forEach(([caller, periods]) => {
-                Object.entries(periods).forEach(([period, stats]) => {
-                    const successRate = stats.calls > 0 ? ((stats.success / stats.calls) * 100).toFixed(1) : 0;
-                    rows.push(`
-                        <tr>
-                            <td>${caller}</td>
-                            <td>${period}</td>
-                            <td>${stats.calls}</td>
-                            <td>${stats.success}</td>
-                            <td>${stats.declines}</td>
-                            <td>${successRate}%</td>
-                        </tr>
-                    `);
-                });
+            showLoading(true);
+            populateMonthFilter(data);
+
+            let rows = [];
+            Object.entries(data).forEach(([caller, periods]) => {
+                if (selectedMonth === 'all') {
+                    // Aggregate data across all months for each caller
+                    let totalCalls = 0, totalSuccess = 0, totalDeclines = 0;
+                    Object.entries(periods).forEach(([period, stats]) => {
+                        totalCalls += stats.calls;
+                        totalSuccess += stats.success;
+                        totalDeclines += stats.declines;
+                    });
+                    const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
+                    rows.push({
+                        caller,
+                        period: 'All Months',
+                        calls: totalCalls,
+                        success: totalSuccess,
+                        declines: totalDeclines,
+                        successRate
+                    });
+                } else {
+                    // Show data for the selected month
+                    if (periods[selectedMonth]) {
+                        const stats = periods[selectedMonth];
+                        const successRate = stats.calls > 0 ? ((stats.success / stats.calls) * 100).toFixed(1) : 0;
+                        rows.push({
+                            caller,
+                            period: selectedMonth,
+                            calls: stats.calls,
+                            success: stats.success,
+                            declines: stats.declines,
+                            successRate
+                        });
+                    }
+                }
             });
 
-            statsTableBody.innerHTML = rows.join('');
-            document.getElementById('statsTable').style.display = 'block';
+            // Sort rows by caller for consistency
+            rows.sort((a, b) => a.caller.localeCompare(b.caller));
+
+            // Populate table
+            statsBody.innerHTML = rows.map(row => `
+                <tr>
+                    <td>${row.caller}</td>
+                    <td>${row.period}</td>
+                    <td>${row.calls.toLocaleString()}</td>
+                    <td>${row.success.toLocaleString()}</td>
+                    <td>${row.declines.toLocaleString()}</td>
+                    <td>${row.successRate}%</td>
+                </tr>
+            `).join('');
+
+            statsTable.style.display = rows.length > 0 ? 'table' : 'none';
+            filtersDiv.style.display = 'block';
+            showLoading(false);
         }
 
-        updateStatsTable();
+        // Initialize table on page load
+        updateTable();
     </script>
 </body>
 </html>
