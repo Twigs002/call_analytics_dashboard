@@ -212,7 +212,6 @@
                 <strong>Month:</strong>
                 <select id="monthFilter">
                     <option value="all">All Months</option>
-                    <option value="2025-06">June 2025</option>
                 </select>
             </label>
             <label>
@@ -265,8 +264,17 @@
 
         function updateFilters() {
             const allCallers = new Set();
-            Object.keys(processedData).forEach(caller => allCallers.add(caller));
+            const allPeriods = new Set();
+            Object.entries(processedData).forEach(([caller, periods]) => {
+                allCallers.add(caller);
+                Object.keys(periods).forEach(period => allPeriods.add(period));
+            });
             const sortedCallers = Array.from(allCallers).sort();
+            const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
+                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
+                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                return dateA - dateB;
+            });
 
             callerFilterSelect.innerHTML = '<option value="all">All Callers</option>';
             sortedCallers.forEach(caller => {
@@ -274,6 +282,14 @@
                 option.value = caller;
                 option.textContent = caller;
                 callerFilterSelect.appendChild(option);
+            });
+
+            monthFilterSelect.innerHTML = '<option value="all">All Months</option>';
+            sortedPeriods.forEach(period => {
+                const option = document.createElement('option');
+                option.value = period;
+                option.textContent = period;
+                monthFilterSelect.appendChild(option);
             });
         }
 
