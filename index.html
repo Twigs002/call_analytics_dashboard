@@ -134,6 +134,14 @@
             border-bottom: 2px solid #98c5ed;
         }
 
+        .chart-subtitle {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #718096;
+            display: block;
+            margin-top: 5px;
+        }
+
         .chart-wrapper {
             position: relative;
             height: 400px;
@@ -162,6 +170,13 @@
             border-radius: 10px;
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: scale(1.05);
+            background: rgba(253, 197, 3, 0.2);
         }
 
         .stat-value {
@@ -273,6 +288,7 @@
                     <option value="individual">Individual Callers</option>
                     <option value="comparison">Compare All Callers</option>
                     <option value="trend">Monthly Trend</option>
+                    <option value="stacked">Stacked Outcomes</option>
                 </select>
             </label>
             <label>
@@ -300,6 +316,12 @@
                 <strong>End Month:</strong>
                 <select id="endMonth">
                     <option value="all">Any</option>
+                </select>
+            </label>
+            <label>
+                <strong>Caller:</strong>
+                <select id="callerFilter">
+                    <option value="all">All Callers</option>
                 </select>
             </label>
             <button id="clearData">Clear Stored Data</button>
@@ -340,6 +362,7 @@
         const monthFilterSelect = document.getElementById('monthFilter');
         const startMonthSelect = document.getElementById('startMonth');
         const endMonthSelect = document.getElementById('endMonth');
+        const callerFilterSelect = document.getElementById('callerFilter');
 
         viewReportsButton.addEventListener('click', showReports);
         clearDataButton.addEventListener('click', clearStoredData);
@@ -348,6 +371,7 @@
         monthFilterSelect.addEventListener('change', createCharts);
         startMonthSelect.addEventListener('change', createCharts);
         endMonthSelect.addEventListener('change', createCharts);
+        callerFilterSelect.addEventListener('change', createCharts);
 
         function showReports() {
             if (Object.keys(processedData).length === 0) {
@@ -381,7 +405,9 @@
 
         function updateFilters() {
             const allPeriods = new Set();
-            Object.values(processedData).forEach(periods => {
+            const allCallers = new Set();
+            Object.entries(processedData).forEach(([caller, periods]) => {
+                allCallers.add(caller);
                 Object.keys(periods).forEach(period => allPeriods.add(period));
             });
             const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
@@ -389,10 +415,12 @@
                 const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
                 return dateA - dateB;
             });
+            const sortedCallers = Array.from(allCallers).sort();
 
             monthFilterSelect.innerHTML = '<option value="all">All Months</option>';
             startMonthSelect.innerHTML = '<option value="all">Any</option>';
             endMonthSelect.innerHTML = '<option value="all">Any</option>';
+            callerFilterSelect.innerHTML = '<option value="all">All Callers</option>';
 
             sortedPeriods.forEach(period => {
                 const option = document.createElement('option');
@@ -402,17 +430,30 @@
                 startMonthSelect.appendChild(option.cloneNode(true));
                 endMonthSelect.appendChild(option.cloneNode(true));
             });
+
+            sortedCallers.forEach(caller => {
+                const option = document.createElement('option');
+                option.value = caller;
+                option.textContent = caller;
+                callerFilterSelect.appendChild(option);
+            });
         }
 
         function updateStats() {
             const statsGrid = document.getElementById('statsGrid');
             const monthSummaryTable = document.getElementById('monthSummaryTable');
-            const totalCallers = Object.keys(processedData).length;
+            const callerFilter = callerFilterSelect.value;
             
+            let filteredData = processedData;
+            if (callerFilter !== 'all') {
+                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
+            }
+
+            const totalCallers = Object.keys(filteredData).length;
             let totalCalls = 0, totalSuccess = 0, totalDeclines = 0;
             const monthTotals = {};
 
-            Object.values(processedData).forEach(callerData => {
+            Object.entries(filteredData).forEach(([caller, callerData]) => {
                 Object.entries(callerData).forEach(([period, stats]) => {
                     if (!monthTotals[period]) {
                         monthTotals[period] = { calls: 0, success: 0, declines: 0 };
@@ -428,7 +469,27 @@
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
+            // Summary Cards
+            let topCaller = null;
+            let maxSuccessRate = -1;
+            Object.entries(filteredData).forEach(([caller, periods]) => {
+                let callerCalls = 0, callerSuccess = 0;
+                Object.values(periods).forEach(stats => {
+                    callerCalls += stats.calls;
+                    callerSuccess += stats.success;
+                });
+                const callerRate = callerCalls > 0 ? (callerSuccess / callerCalls * 100) : 0;
+                if (callerRate > maxSuccessRate && callerCalls >= 5) {
+                    maxSuccessRate = callerRate;
+                    topCaller = caller;
+                }
+            });
+
             statsGrid.innerHTML = `
+                <div class="stat-item" ${topCaller ? `onclick="callerFilterSelect.value='${topCaller}'; createCharts();"` : ''}>
+                    <div class="stat-value">${topCaller || 'N/A'}</div>
+                    <div class="stat-label">Top Performer</div>
+                </div>
                 <div class="stat-item">
                     <div class="stat-value">${totalCallers}</div>
                     <div class="stat-label">Total Callers</div>
@@ -477,6 +538,7 @@
             const selectedMonth = monthFilterSelect.value;
             const startMonth = startMonthSelect.value;
             const endMonth = endMonthSelect.value;
+            const callerFilter = callerFilterSelect.value;
 
             Object.values(charts).forEach(chart => chart.destroy());
             charts = {};
@@ -503,24 +565,31 @@
                 });
             }
 
-            if (filteredPeriods.length === 0) {
-                showError('No data available for the selected month or date range.');
+            let filteredData = processedData;
+            if (callerFilter !== 'all') {
+                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
+            }
+
+            if (filteredPeriods.length === 0 || Object.keys(filteredData).length === 0) {
+                showError('No data available for the selected filters.');
                 return;
             }
 
             if (viewType === 'individual') {
-                createIndividualCharts(metricType, filteredPeriods);
+                createIndividualCharts(metricType, filteredPeriods, filteredData);
             } else if (viewType === 'comparison') {
-                createComparisonChart(metricType, filteredPeriods);
+                createComparisonChart(metricType, filteredPeriods, filteredData);
             } else if (viewType === 'trend') {
-                createTrendChart(metricType, filteredPeriods);
+                createTrendChart(metricType, filteredPeriods, filteredData);
+            } else if (viewType === 'stacked') {
+                createStackedChart(filteredPeriods, filteredData);
             }
         }
 
-        function createIndividualCharts(metricType, filteredPeriods) {
+        function createIndividualCharts(metricType, filteredPeriods, filteredData) {
             const container = document.getElementById('chartsContainer');
 
-            Object.entries(processedData).forEach(([caller, periods]) => {
+            Object.entries(filteredData).forEach(([caller, periods]) => {
                 const chartDiv = document.createElement('div');
                 chartDiv.className = 'chart-container';
                 
@@ -528,8 +597,30 @@
                 const chartId = `chart-${caller.replace(/\s+/g, '-')}`;
                 canvas.id = chartId;
 
+                // Calculate total for the selected metric
+                let total = 0;
+                let totalCalls = 0;
+                let totalSuccess = 0;
+                filteredPeriods.forEach(period => {
+                    const p = periods[period];
+                    if (p) {
+                        switch(metricType) {
+                            case 'calls': total += p.calls; break;
+                            case 'success': total += p.success; break;
+                            case 'declines': total += p.declines; break;
+                            case 'rate':
+                                totalCalls += p.calls;
+                                totalSuccess += p.success;
+                                break;
+                        }
+                    }
+                });
+                const totalDisplay = metricType === 'rate' 
+                    ? (totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0) + '%'
+                    : total.toLocaleString();
+
                 chartDiv.innerHTML = `
-                    <div class="chart-title">${caller}</div>
+                    <div class="chart-title">${caller}<br><span class="chart-subtitle">${totalDisplay} ${getMetricLabel(metricType)}</span></div>
                     <div class="chart-wrapper"></div>
                 `;
                 
@@ -548,7 +639,17 @@
                     }
                 });
 
-                console.log(`Creating chart for ${caller}:`, { labels: filteredPeriods, data });
+                const tooltipData = filteredPeriods.map(period => {
+                    const p = periods[period] || { calls: 0, success: 0, declines: 0 };
+                    return {
+                        calls: p.calls,
+                        success: p.success,
+                        declines: p.declines,
+                        rate: p.calls > 0 ? ((p.success / p.calls) * 100).toFixed(1) : 0
+                    };
+                });
+
+                console.log(`Creating chart for ${caller}:`, { labels: filteredPeriods, data, total: totalDisplay });
 
                 const ctx = canvas.getContext('2d');
                 charts[chartId] = new Chart(ctx, {
@@ -573,35 +674,32 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: {
-                                display: false
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const index = context.dataIndex;
+                                        const stats = tooltipData[index];
+                                        return [
+                                            `Total Calls: ${stats.calls}`,
+                                            `Successful: ${stats.success}`,
+                                            `Declined: ${stats.declines}`,
+                                            `Success Rate: ${stats.rate}%`
+                                        ];
+                                    }
+                                }
                             }
                         },
                         scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: {
-                                    color: 'rgba(152, 197, 237, 0.3)'
-                                },
-                                ticks: {
-                                    color: '#3d5BA6'
-                                }
-                            },
-                            x: {
-                                grid: {
-                                    color: 'rgba(152, 197, 237, 0.3)'
-                                },
-                                ticks: {
-                                    color: '#3d5BA6'
-                                }
-                            }
+                            y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } },
+                            x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } }
                         }
                     }
                 });
             });
         }
 
-        function createComparisonChart(metricType, filteredPeriods) {
+        function createComparisonChart(metricType, filteredPeriods, filteredData) {
             const container = document.getElementById('chartsContainer');
             
             const chartDiv = document.createElement('div');
@@ -620,7 +718,7 @@
             chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
             container.appendChild(chartDiv);
 
-            const datasets = Object.entries(processedData).map(([caller, periods], index) => {
+            const datasets = Object.entries(filteredData).map(([caller, periods], index) => {
                 const colors = [
                     '#3d5BA6', '#FDC503', '#98c5ed', '#d20A03',
                     '#3d5BA6', '#FDC503', '#98c5ed', '#d20A03'
@@ -631,7 +729,6 @@
                 const data = filteredPeriods.map(period => {
                     const p = periods[period];
                     if (!p) return null;
-                    
                     switch(metricType) {
                         case 'calls': return p.calls;
                         case 'success': return p.success;
@@ -639,6 +736,16 @@
                         case 'rate': return p.calls > 0 ? (p.success / p.calls * 100) : 0;
                         default: return p.calls;
                     }
+                });
+
+                const tooltipData = filteredPeriods.map(period => {
+                    const p = periods[period] || { calls: 0, success: 0, declines: 0 };
+                    return {
+                        calls: p.calls,
+                        success: p.success,
+                        declines: p.declines,
+                        rate: p.calls > 0 ? ((p.success / p.calls) * 100).toFixed(1) : 0
+                    };
                 });
 
                 return {
@@ -652,7 +759,8 @@
                     pointBackgroundColor: color,
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
-                    pointRadius: 5
+                    pointRadius: 5,
+                    tooltipData: tooltipData
                 };
             });
 
@@ -661,50 +769,39 @@
             const ctx = canvas.getContext('2d');
             charts[chartId] = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    labels: filteredPeriods,
-                    datasets: datasets
-                },
+                data: { labels: filteredPeriods, datasets: datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 20
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const dataset = context.dataset;
+                                    const stats = dataset.tooltipData[index];
+                                    return [
+                                        `${dataset.label}:`,
+                                        `Total Calls: ${stats.calls}`,
+                                        `Successful: ${stats.success}`,
+                                        `Declined: ${stats.declines}`,
+                                        `Success Rate: ${stats.rate}%`
+                                    ];
+                                }
                             }
                         }
                     },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(152, 197, 237, 0.3)'
-                            },
-                            ticks: {
-                                color: '#3d5BA6'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: 'rgba(152, 197, 237, 0.3)'
-                            },
-                            ticks: {
-                                color: '#3d5BA6'
-                            }
-                        }
+                        y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } },
+                        x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } }
                     },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    }
+                    interaction: { intersect: false, mode: 'index' }
                 }
             });
         }
 
-        function createTrendChart(metricType, filteredPeriods) {
+        function createTrendChart(metricType, filteredPeriods, filteredData) {
             const container = document.getElementById('chartsContainer');
             
             const chartDiv = document.createElement('div');
@@ -726,7 +823,7 @@
             const data = filteredPeriods.map(period => {
                 let total = 0;
                 let totalCalls = 0;
-                Object.values(processedData).forEach(callerData => {
+                Object.values(filteredData).forEach(callerData => {
                     const stats = callerData[period];
                     if (stats) {
                         switch(metricType) {
@@ -744,6 +841,24 @@
                     return totalCalls > 0 ? (total / totalCalls * 100) : 0;
                 }
                 return total;
+            });
+
+            const tooltipData = filteredPeriods.map(period => {
+                let calls = 0, success = 0, declines = 0;
+                Object.values(filteredData).forEach(callerData => {
+                    const stats = callerData[period];
+                    if (stats) {
+                        calls += stats.calls;
+                        success += stats.success;
+                        declines += stats.declines;
+                    }
+                });
+                return {
+                    calls: calls,
+                    success: success,
+                    declines: declines,
+                    rate: calls > 0 ? ((success / calls) * 100).toFixed(1) : 0
+                };
             });
 
             console.log('Creating trend chart:', { labels: filteredPeriods, data });
@@ -771,27 +886,123 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            display: false
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const stats = tooltipData[index];
+                                    return [
+                                        `Total Calls: ${stats.calls}`,
+                                        `Successful: ${stats.success}`,
+                                        `Declined: ${stats.declines}`,
+                                        `Success Rate: ${stats.rate}%`
+                                    ];
+                                }
+                            }
                         }
                     },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(152, 197, 237, 0.3)'
-                            },
-                            ticks: {
-                                color: '#3d5BA6'
+                        y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } },
+                        x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } }
+                    }
+                }
+            });
+        }
+
+        function createStackedChart(filteredPeriods, filteredData) {
+            const container = document.getElementById('chartsContainer');
+            
+            const chartDiv = document.createElement('div');
+            chartDiv.className = 'chart-container';
+            chartDiv.style.gridColumn = '1 / -1';
+            
+            const canvas = document.createElement('canvas');
+            const chartId = 'stacked-chart';
+            canvas.id = chartId;
+
+            chartDiv.innerHTML = `
+                <div class="chart-title">Call Outcomes by Caller</div>
+                <div class="chart-wrapper"></div>
+            `;
+            
+            chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
+            container.appendChild(chartDiv);
+
+            const datasets = [
+                {
+                    label: 'Successful Calls',
+                    data: filteredPeriods.map(period => {
+                        let total = 0;
+                        Object.values(filteredData).forEach(callerData => {
+                            const stats = callerData[period];
+                            if (stats) total += stats.success;
+                        });
+                        return total;
+                    }),
+                    backgroundColor: '#3d5BA6'
+                },
+                {
+                    label: 'Declined Calls',
+                    data: filteredPeriods.map(period => {
+                        let total = 0;
+                        Object.values(filteredData).forEach(callerData => {
+                            const stats = callerData[period];
+                            if (stats) total += stats.declines;
+                        });
+                        return total;
+                    }),
+                    backgroundColor: '#d20A03'
+                }
+            ];
+
+            console.log('Creating stacked chart:', { labels: filteredPeriods, datasets });
+
+            const ctx = canvas.getContext('2d');
+            charts[chartId] = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: filteredPeriods, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    let calls = 0, success = 0, declines = 0;
+                                    Object.values(filteredData).forEach(callerData => {
+                                        const stats = callerData[filteredPeriods[index]];
+                                        if (stats) {
+                                            calls += stats.calls;
+                                            success += stats.success;
+                                            declines += stats.declines;
+                                        }
+                                    });
+                                    const rate = calls > 0 ? ((success / calls) * 100).toFixed(1) : 0;
+                                    return [
+                                        `${context.dataset.label}: ${context.raw}`,
+                                        `Total Calls: ${calls}`,
+                                        `Successful: ${success}`,
+                                        `Declined: ${declines}`,
+                                        `Success Rate: ${rate}%`
+                                    ];
+                                }
                             }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            stacked: true,
+                            grid: { color: 'rgba(152, 197, 237, 0.3)' }, 
+                            ticks: { color: '#3d5BA6' } 
                         },
-                        x: {
-                            grid: {
-                                color: 'rgba(152, 197, 237, 0.3)'
-                            },
-                            ticks: {
-                                color: '#3d5BA6'
-                            }
+                        x: { 
+                            stacked: true,
+                            grid: { color: 'rgba(152, 197, 237, 0.3)' }, 
+                            ticks: { color: '#3d5BA6' } 
                         }
                     }
                 }
@@ -803,7 +1014,7 @@
                 case 'calls': return 'Total Calls';
                 case 'success': return 'Successful Calls';
                 case 'declines': return 'Declined Calls';
-                case 'rate': return 'Success Rate (%)';
+                case 'rate': return 'Success Rate';
                 default: return 'Total Calls';
             }
         }
