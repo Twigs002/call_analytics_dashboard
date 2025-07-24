@@ -364,69 +364,73 @@
             let errorCount = 0;
             
             csvData.forEach((row, index) => {
-                const callNotes = row[callNotesColumn];
+                const callNotes = row[callNotesColumn]?.toString();
                 if (!callNotes) return;
 
                 try {
-                    // Extract call user - pattern: "Call user: USERNAME"
-                    const userMatch = callNotes.match(/Call user:\s*([^$\n]+?)(?:\$|Call|$)/i);
-                    if (!userMatch) return;
+                    // Split call notes by 'Dialfire call result' to handle multiple entries
+                    const callEntries = callNotes.split(/(?=Dialfire call result:)/i);
                     
-                    let caller = userMatch[1].trim();
-                    
-                    // Clean up the caller name - remove @clienthub and similar suffixes
-                    caller = caller.replace(/@.*$/, '').replace(/\$.*$/, '');
-                    
-                    // Extract call result - pattern: "Dialfire call result: RESULT"
-                    const resultMatch = callNotes.match(/Dialfire call result:\s*([^\/\$\n]+)/i);
-                    if (!resultMatch) return;
-                    
-                    const result = resultMatch[1].trim().toLowerCase();
-                    
-                    // Try to extract date/period (you can customize this based on your data)
-                    let period = 'Current Period';
-                    const dateMatch = callNotes.match(/(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})|(\w+\s+\d{4})/);
-                    if (dateMatch) {
-                        period = dateMatch[0];
-                    }
+                    for (const entry of callEntries) {
+                        // Extract call user - pattern: "Call user: USERNAME"
+                        const userMatch = entry.match(/Call user:\s*([^$\n]+?)(?:\$|Call comment|$)/i);
+                        if (!userMatch) continue;
+                        
+                        let caller = userMatch[1].trim();
+                        
+                        // Clean up the caller name - remove @clienthub and similar suffixes
+                        caller = caller.replace(/@.*$/, '').replace(/\$.*$/, '').trim();
+                        
+                        // Extract call result - pattern: "Dialfire call result: RESULT"
+                        const resultMatch = entry.match(/Dialfire call result:\s*([^\/\$\n]+)/i);
+                        if (!resultMatch) continue;
+                        
+                        const result = resultMatch[1].trim().toLowerCase();
+                        
+                        // Try to extract date/period
+                        let period = 'Current Period';
+                        const dateMatch = entry.match(/(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})|(\w+\s+\d{4})/);
+                        if (dateMatch) {
+                            period = dateMatch[0];
+                        }
 
-                    if (!caller || !result) return;
+                        if (!caller || !result) continue;
 
-                    // Initialize caller data structure
-                    if (!processedData[caller]) {
-                        processedData[caller] = {};
-                    }
+                        // Initialize caller data structure
+                        if (!processedData[caller]) {
+                            processedData[caller] = {};
+                        }
 
-                    if (!processedData[caller][period]) {
-                        processedData[caller][period] = {
-                            calls: 0,
-                            success: 0,
-                            declines: 0
-                        };
-                    }
+                        if (!processedData[caller][period]) {
+                            processedData[caller][period] = {
+                                calls: 0,
+                                success: 0,
+                                declines: 0
+                            };
+                        }
 
-                    // Count the call
-                    processedData[caller][period].calls += 1;
-                    
-                    // Categorize the result
-                    if (result.includes('success') || result.includes('answered') || result.includes('connected')) {
-                        processedData[caller][period].success += 1;
-                    } else if (result.includes('declined') || result.includes('busy') || result.includes('no answer') || result.includes('failed')) {
-                        processedData[caller][period].declines += 1;
-                    } else {
-                        // For unknown results, categorize as declined
-                        processedData[caller][period].declines += 1;
+                        // Count the call
+                        processedData[caller][period].calls += 1;
+                        
+                        // Categorize the result
+                        if (result.includes('success') || result.includes('answered') || result.includes('connected')) {
+                            processedData[caller][period].success += 1;
+                        } else if (result.includes('declined') || result.includes('busy') || result.includes('no answer') || result.includes('failed')) {
+                            processedData[caller][period].declines += 1;
+                        } else {
+                            // For unknown results, categorize as declined
+                            processedData[caller][period].declines += 1;
+                        }
+                        
+                        totalProcessed++;
                     }
-                    
-                    totalProcessed++;
-                    
                 } catch (error) {
                     errorCount++;
                     console.warn(`Error processing row ${index + 1}:`, error);
                 }
             });
 
-            if (Object.keys(processedData).length === 0) {
+            if (Object.keys(processedData).length === 0 || totalProcessed === 0) {
                 showError(`No valid call data found. Processed ${totalProcessed} calls with ${errorCount} errors. Please check that your call notes contain "Call user:" and "Dialfire call result:" patterns.`);
                 return;
             }
@@ -462,7 +466,7 @@
                 });
             });
 
-            const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
+            const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls * 100).toFixed(1)) : 0;
 
             statsGrid.innerHTML = `
                 <div class="stat-item">
@@ -473,11 +477,11 @@
                     <div class="stat-value">${totalCalls.toLocaleString()}</div>
                     <div class="stat-label">Total Calls</div>
                 </div>
-                <div class="stat-item">
+                </div class="stat-item">
                     <div class="stat-value">${totalSuccess.toLocaleString()}</div>
                     <div class="stat-label">Successful</div>
                 </div>
-                <div class="stat-item">
+                </div class="stat-item">
                     <div class="stat-value">${successRate}%</div>
                     <div class="stat-label">Success Rate</div>
                 </div>
@@ -520,8 +524,8 @@
                 chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
                 container.appendChild(chartDiv);
 
-                const periods_sorted = Object.keys(periods).sort();
-                const data = periods_sorted.map(period => {
+                const periodsSorted = Object.keys(periods).sort();
+                const data = periodsSorted.map(period => {
                     const p = periods[period];
                     switch(metricType) {
                         case 'calls': return p.calls;
@@ -536,7 +540,7 @@
                 charts[chartId] = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: periods_sorted,
+                        labels: periodsSorted,
                         datasets: [{
                             label: getMetricLabel(metricType),
                             data: data,
