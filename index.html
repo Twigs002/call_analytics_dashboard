@@ -42,17 +42,11 @@
         }
 
         .header h1 {
-            font-family: 'Permanent Marker', cursive;
+            font-family: 'Gotham', sans-serif;
+            font-weight: 700;
             font-size: 2.5rem;
             color: #3D5BA6;
             text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
-        }
-
-        .header h1 span {
-            display: block;
-            font-size: 1.2rem;
-            font-weight: 400;
-            color: #FD5C03;
         }
 
         .nav-bar {
@@ -288,6 +282,9 @@
 </head>
 <body>
     <div class="container">
+        <div class="header">
+            <h1>QUAY 1 INTERNATIONAL REALTY</h1>
+        </div>
         
         <div class="nav-bar">
             <a href="index.html">Dashboard</a>
@@ -392,6 +389,7 @@
         monthFilterSelect.addEventListener('change', createCharts);
         startMonthSelect.addEventListener('change', createCharts);
         endMonthSelect.addEventListener('change', createCharts);
+        callerFilterSelect.addEventListener('change', createCharts);
         toggleReportsButton.addEventListener('click', toggleReports);
 
         // Check for admin mode via query parameter (placeholder)
@@ -494,24 +492,35 @@
             const statsGrid = document.getElementById('statsGrid');
             const monthSummaryTable = document.getElementById('monthSummaryTable');
             const callerFilter = callerFilterSelect.value;
+            const selectedMonth = monthFilterSelect.value;
             
             let filteredData = processedData;
             if (callerFilter !== 'all') {
                 filteredData = { [callerFilter]: processedData[callerFilter] || {} };
             }
 
-            if (Object.keys(filteredData).length === 0) {
+            // Apply month filter
+            let monthFilteredData = {};
+            Object.entries(filteredData).forEach(([caller, periods]) => {
+                if (selectedMonth === 'all') {
+                    monthFilteredData[caller] = periods;
+                } else if (periods[selectedMonth]) {
+                    monthFilteredData[caller] = { [selectedMonth]: periods[selectedMonth] };
+                }
+            });
+
+            if (Object.keys(monthFilteredData).length === 0) {
                 statsGrid.innerHTML = '<div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">No Data Available</div></div>';
                 monthSummaryTable.innerHTML = '';
                 document.getElementById('monthSummary').style.display = 'none';
                 return;
             }
 
-            const totalCallers = Object.keys(filteredData).length;
+            const totalCallers = Object.keys(monthFilteredData).length;
             let totalCalls = 0, totalSuccess = 0, totalDeclines = 0;
             const monthTotals = {};
 
-            Object.entries(filteredData).forEach(([caller, callerData]) => {
+            Object.entries(monthFilteredData).forEach(([caller, callerData]) => {
                 Object.entries(callerData).forEach(([period, stats]) => {
                     if (!monthTotals[period]) {
                         monthTotals[period] = { calls: 0, success: 0, declines: 0 };
@@ -531,7 +540,7 @@
             let topCaller = null;
             let maxCalls = -1;
             let maxSuccessRate = -1;
-            Object.entries(filteredData).forEach(([caller, periods]) => {
+            Object.entries(monthFilteredData).forEach(([caller, periods]) => {
                 let callerCalls = 0, callerSuccess = 0;
                 Object.values(periods).forEach(stats => {
                     callerCalls += stats.calls;
