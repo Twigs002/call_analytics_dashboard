@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Call Analytics Dashboard</title>
+    <title>Call Analytics Dashboard - Quay 1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Gotham:wght@400;500;700&display=swap');
         
         * {
             margin: 0;
@@ -19,7 +21,7 @@
         body {
             font-family: 'Gotham', 'Helvetica Neue', Arial, sans-serif;
             font-weight: 400;
-            background: linear-gradient(135deg, #3d5BA6 0%, #98c5ed 100%);
+            background: linear-gradient(135deg, #3D5BA6 0%, #98C5ED 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -34,13 +36,23 @@
             backdrop-filter: blur(10px);
         }
 
-        h1 {
+        .header {
             text-align: center;
-            color: #3d5BA6;
             margin-bottom: 30px;
-            font-size: 2.5rem;
+        }
+
+        .header h1 {
             font-family: 'Permanent Marker', cursive;
+            font-size: 2.5rem;
+            color: #3D5BA6;
             text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
+        }
+
+        .header h1 span {
+            display: block;
+            font-size: 1.2rem;
+            font-weight: 400;
+            color: #FD5C03;
         }
 
         .nav-bar {
@@ -52,10 +64,10 @@
 
         .nav-bar a {
             padding: 10px 20px;
-            border: 2px solid #98c5ed;
+            border: 2px solid #98C5ED;
             border-radius: 10px;
             background: white;
-            color: #3d5BA6;
+            color: #3D5BA6;
             text-decoration: none;
             font-weight: 500;
             transition: all 0.3s ease;
@@ -76,16 +88,16 @@
 
         .filters label {
             font-weight: 500;
-            color: #3d5BA6;
+            color: #3D5BA6;
         }
 
         select, button {
             padding: 10px 15px;
-            border: 2px solid #98c5ed;
+            border: 2px solid #98C5ED;
             border-radius: 10px;
             font-size: 1rem;
             background: white;
-            color: #3d5BA6;
+            color: #3D5BA6;
             cursor: pointer;
             transition: all 0.3s ease;
             font-weight: 400;
@@ -102,6 +114,10 @@
             color: white;
         }
 
+        button i {
+            margin-right: 5px;
+        }
+
         .charts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
@@ -115,7 +131,8 @@
             padding: 25px;
             box-shadow: 0 10px 25px rgba(61, 91, 166, 0.1);
             transition: transform 0.3s ease;
-            border: 2px solid #98c5ed;
+            border: 2px solid #98C5ED;
+            position: relative;
         }
 
         .chart-container:hover {
@@ -125,21 +142,13 @@
         }
 
         .chart-title {
+            font-family: 'Permanent Marker', cursive;
             font-size: 1.3rem;
-            font-weight: 500;
-            color: #3d5BA6;
+            color: #3D5BA6;
             margin-bottom: 20px;
             text-align: center;
             padding-bottom: 10px;
-            border-bottom: 2px solid #98c5ed;
-        }
-
-        .chart-subtitle {
-            font-size: 1rem;
-            font-weight: 400;
-            color: #718096;
-            display: block;
-            margin-top: 5px;
+            border-bottom: 2px solid #98C5ED;
         }
 
         .chart-wrapper {
@@ -147,8 +156,16 @@
             height: 400px;
         }
 
+        .download-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.9rem;
+            padding: 8px 12px;
+        }
+
         .stats-summary {
-            background: linear-gradient(135deg, #3d5BA6, #98c5ed);
+            background: linear-gradient(135deg, #3D5BA6, #98C5ED);
             color: white;
             border-radius: 15px;
             padding: 20px;
@@ -180,6 +197,7 @@
         }
 
         .stat-value {
+            font-family: 'Gotham', sans-serif;
             font-size: 2rem;
             font-weight: 700;
             margin-bottom: 5px;
@@ -187,9 +205,9 @@
         }
 
         .stat-label {
+            font-family: 'Permanent Marker', cursive;
             font-size: 0.9rem;
             opacity: 0.9;
-            font-weight: 400;
         }
 
         .month-summary {
@@ -209,31 +227,32 @@
         .month-summary th, .month-summary td {
             padding: 10px;
             text-align: left;
-            border-bottom: 1px solid #98c5ed;
+            border-bottom: 1px solid #98C5ED;
         }
 
         .month-summary th {
-            background: #3d5BA6;
+            background: #3D5BA6;
             color: white;
-            font-weight: 500;
+            font-family: 'Permanent Marker', cursive;
         }
 
         .month-summary td {
-            color: #3d5BA6;
+            color: #3D5BA6;
+            font-family: 'Gotham', sans-serif;
         }
 
         .loading {
             text-align: center;
             padding: 40px;
             font-size: 1.2rem;
-            color: #3d5BA6;
+            color: #3D5BA6;
             display: none;
             font-weight: 500;
         }
 
         .error {
             background: rgba(210, 10, 3, 0.1);
-            color: #d20A03;
+            color: #D20A03;
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 20px;
@@ -252,7 +271,7 @@
                 align-items: stretch;
             }
             
-            h1 {
+            .header h1 {
                 font-size: 2rem;
             }
             
@@ -269,7 +288,9 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 Call Analytics Dashboard</h1>
+        <div class="header">
+            <h1>QUAY 1 INTERNATIONAL REALTY<br><span>Navigating Success</span></h1>
+        </div>
         
         <div class="nav-bar">
             <a href="index.html">Dashboard</a>
@@ -277,9 +298,9 @@
             <a href="import.html">Import Data</a>
         </div>
 
-        <button id="viewReports" style="display: none;">View Reports</button>
+        <button id="viewReports" style="display: none;"><i class="fas fa-chart-bar"></i> View Reports</button>
         <div class="error" id="errorMessage"></div>
-        <div class="loading" id="loading">Processing your data...</div>
+        <div class="loading" id="loading"><i class="fas fa-spinner fa-spin"></i> Processing your data...</div>
 
         <div class="filters" id="filters" style="display: none;">
             <label>
@@ -324,13 +345,13 @@
                     <option value="all">All Callers</option>
                 </select>
             </label>
-            <button id="clearData">Clear Stored Data</button>
+            <button id="clearData"><i class="fas fa-trash"></i> Clear Stored Data</button>
         </div>
 
         <div class="stats-summary" id="statsSummary" style="display: none;">
             <div class="stats-grid" id="statsGrid"></div>
             <div class="month-summary" id="monthSummary">
-                <h3 style="color: #3d5BA6; margin-bottom: 10px;">Monthly Summary</h3>
+                <h3 style="color: #3D5BA6; margin-bottom: 10px; font-family: 'Permanent Marker', cursive;">Monthly Summary</h3>
                 <table>
                     <thead>
                         <tr>
@@ -403,6 +424,12 @@
             }
         }
 
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
+
         function updateFilters() {
             const allPeriods = new Set();
             const allCallers = new Set();
@@ -469,7 +496,6 @@
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
-            // Summary Cards
             let topCaller = null;
             let maxSuccessRate = -1;
             Object.entries(filteredData).forEach(([caller, periods]) => {
@@ -597,31 +623,10 @@
                 const chartId = `chart-${caller.replace(/\s+/g, '-')}`;
                 canvas.id = chartId;
 
-                // Calculate total for the selected metric
-                let total = 0;
-                let totalCalls = 0;
-                let totalSuccess = 0;
-                filteredPeriods.forEach(period => {
-                    const p = periods[period];
-                    if (p) {
-                        switch(metricType) {
-                            case 'calls': total += p.calls; break;
-                            case 'success': total += p.success; break;
-                            case 'declines': total += p.declines; break;
-                            case 'rate':
-                                totalCalls += p.calls;
-                                totalSuccess += p.success;
-                                break;
-                        }
-                    }
-                });
-                const totalDisplay = metricType === 'rate' 
-                    ? (totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0) + '%'
-                    : total.toLocaleString();
-
                 chartDiv.innerHTML = `
-                    <div class="chart-title">${caller}<br><span class="chart-subtitle">${totalDisplay} ${getMetricLabel(metricType)}</span></div>
+                    <div class="chart-title">${caller}</div>
                     <div class="chart-wrapper"></div>
+                    <button class="download-btn" onclick="downloadChart('${chartId}', '${caller} - ${getMetricLabel(metricType)}')"><i class="fas fa-download"></i> Download</button>
                 `;
                 
                 chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
@@ -649,8 +654,6 @@
                     };
                 });
 
-                console.log(`Creating chart for ${caller}:`, { labels: filteredPeriods, data, total: totalDisplay });
-
                 const ctx = canvas.getContext('2d');
                 charts[chartId] = new Chart(ctx, {
                     type: 'line',
@@ -659,13 +662,13 @@
                         datasets: [{
                             label: getMetricLabel(metricType),
                             data: data,
-                            borderColor: '#3d5BA6',
+                            borderColor: '#3D5BA6',
                             backgroundColor: 'rgba(61, 91, 166, 0.1)',
                             borderWidth: 3,
                             fill: true,
                             tension: 0.4,
                             pointBackgroundColor: '#FDC503',
-                            pointBorderColor: '#3d5BA6',
+                            pointBorderColor: '#3D5BA6',
                             pointBorderWidth: 2,
                             pointRadius: 6
                         }]
@@ -691,8 +694,23 @@
                             }
                         },
                         scales: {
-                            y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } },
-                            x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } }
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(152, 197, 237, 0.3)' },
+                                ticks: { color: '#3D5BA6', font: { family: 'Gotham' } }
+                            },
+                            x: {
+                                grid: { color: 'rgba(152, 197, 237, 0.3)' },
+                                ticks: { color: '#3D5BA6', font: { family: 'Gotham' } }
+                            }
+                        },
+                        onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const month = filteredPeriods[index];
+                                monthFilterSelect.value = month;
+                                createCharts();
+                            }
                         }
                     }
                 });
@@ -713,17 +731,14 @@
             chartDiv.innerHTML = `
                 <div class="chart-title">All Callers Comparison - ${getMetricLabel(metricType)}</div>
                 <div class="chart-wrapper"></div>
+                <button class="download-btn" onclick="downloadChart('${chartId}', 'Comparison - ${getMetricLabel(metricType)}')"><i class="fas fa-download"></i> Download</button>
             `;
             
             chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
             container.appendChild(chartDiv);
 
             const datasets = Object.entries(filteredData).map(([caller, periods], index) => {
-                const colors = [
-                    '#3d5BA6', '#FDC503', '#98c5ed', '#d20A03',
-                    '#3d5BA6', '#FDC503', '#98c5ed', '#d20A03'
-                ];
-                
+                const colors = ['#3D5BA6', '#FDC503', '#98C5ED', '#D20A03'];
                 const color = colors[index % colors.length];
                 
                 const data = filteredPeriods.map(period => {
@@ -764,8 +779,6 @@
                 };
             });
 
-            console.log('Creating comparison chart:', { labels: filteredPeriods, datasets });
-
             const ctx = canvas.getContext('2d');
             charts[chartId] = new Chart(ctx, {
                 type: 'line',
@@ -774,7 +787,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20, font: { family: 'Gotham' } } },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -793,10 +806,18 @@
                         }
                     },
                     scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } },
-                        x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } }
+                        y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3D5BA6', font: { family: 'Gotham' } } },
+                        x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3D5BA6', font: { family: 'Gotham' } } }
                     },
-                    interaction: { intersect: false, mode: 'index' }
+                    interaction: { intersect: false, mode: 'index' },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const month = filteredPeriods[index];
+                            monthFilterSelect.value = month;
+                            createCharts();
+                        }
+                    }
                 }
             });
         }
@@ -815,6 +836,7 @@
             chartDiv.innerHTML = `
                 <div class="chart-title">Monthly Trend - ${getMetricLabel(metricType)}</div>
                 <div class="chart-wrapper"></div>
+                <button class="download-btn" onclick="downloadChart('${chartId}', 'Trend - ${getMetricLabel(metricType)}')"><i class="fas fa-download"></i> Download</button>
             `;
             
             chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
@@ -861,8 +883,6 @@
                 };
             });
 
-            console.log('Creating trend chart:', { labels: filteredPeriods, data });
-
             const ctx = canvas.getContext('2d');
             charts[chartId] = new Chart(ctx, {
                 type: 'line',
@@ -871,13 +891,13 @@
                     datasets: [{
                         label: getMetricLabel(metricType),
                         data: data,
-                        borderColor: '#3d5BA6',
+                        borderColor: '#3D5BA6',
                         backgroundColor: 'rgba(61, 91, 166, 0.1)',
                         borderWidth: 3,
                         fill: true,
                         tension: 0.4,
                         pointBackgroundColor: '#FDC503',
-                        pointBorderColor: '#3d5BA6',
+                        pointBorderColor: '#3D5BA6',
                         pointBorderWidth: 2,
                         pointRadius: 6
                     }]
@@ -903,8 +923,16 @@
                         }
                     },
                     scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } },
-                        x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3d5BA6' } }
+                        y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3D5BA6', font: { family: 'Gotham' } } },
+                        x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3D5BA6', font: { family: 'Gotham' } } }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const month = filteredPeriods[index];
+                            monthFilterSelect.value = month;
+                            createCharts();
+                        }
                     }
                 }
             });
@@ -924,6 +952,7 @@
             chartDiv.innerHTML = `
                 <div class="chart-title">Call Outcomes by Caller</div>
                 <div class="chart-wrapper"></div>
+                <button class="download-btn" onclick="downloadChart('${chartId}', 'Call Outcomes by Caller')"><i class="fas fa-download"></i> Download</button>
             `;
             
             chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
@@ -940,7 +969,9 @@
                         });
                         return total;
                     }),
-                    backgroundColor: '#3d5BA6'
+                    backgroundColor: '#3D5BA6',
+                    borderColor: '#3D5BA6',
+                    borderWidth: 1
                 },
                 {
                     label: 'Declined Calls',
@@ -952,57 +983,77 @@
                         });
                         return total;
                     }),
-                    backgroundColor: '#d20A03'
+                    backgroundColor: '#D20A03',
+                    borderColor: '#D20A03',
+                    borderWidth: 1
                 }
             ];
 
-            console.log('Creating stacked chart:', { labels: filteredPeriods, datasets });
+            const tooltipData = filteredPeriods.map(period => {
+                let calls = 0, success = 0, declines = 0;
+                Object.values(filteredData).forEach(callerData => {
+                    const stats = callerData[period];
+                    if (stats) {
+                        calls += stats.calls;
+                        success += stats.success;
+                        declines += stats.declines;
+                    }
+                });
+                return {
+                    calls: calls,
+                    success: success,
+                    declines: declines,
+                    rate: calls > 0 ? ((success / calls) * 100).toFixed(1) : 0
+                };
+            });
 
             const ctx = canvas.getContext('2d');
             charts[chartId] = new Chart(ctx, {
                 type: 'bar',
-                data: { labels: filteredPeriods, datasets: datasets },
+                data: {
+                    labels: filteredPeriods,
+                    datasets: datasets
+                },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20, font: { family: 'Gotham' } } },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
                                     const index = context.dataIndex;
-                                    let calls = 0, success = 0, declines = 0;
-                                    Object.values(filteredData).forEach(callerData => {
-                                        const stats = callerData[filteredPeriods[index]];
-                                        if (stats) {
-                                            calls += stats.calls;
-                                            success += stats.success;
-                                            declines += stats.declines;
-                                        }
-                                    });
-                                    const rate = calls > 0 ? ((success / calls) * 100).toFixed(1) : 0;
+                                    const stats = tooltipData[index];
                                     return [
                                         `${context.dataset.label}: ${context.raw}`,
-                                        `Total Calls: ${calls}`,
-                                        `Successful: ${success}`,
-                                        `Declined: ${declines}`,
-                                        `Success Rate: ${rate}%`
+                                        `Total Calls: ${stats.calls}`,
+                                        `Successful: ${stats.success}`,
+                                        `Declined: ${stats.declines}`,
+                                        `Success Rate: ${stats.rate}%`
                                     ];
                                 }
                             }
                         }
                     },
                     scales: {
-                        y: { 
-                            beginAtZero: true, 
+                        y: {
+                            beginAtZero: true,
                             stacked: true,
-                            grid: { color: 'rgba(152, 197, 237, 0.3)' }, 
-                            ticks: { color: '#3d5BA6' } 
+                            grid: { color: 'rgba(152, 197, 237, 0.3)' },
+                            ticks: { color: '#3D5BA6', font: { family: 'Gotham' } }
                         },
-                        x: { 
+                        x: {
                             stacked: true,
-                            grid: { color: 'rgba(152, 197, 237, 0.3)' }, 
-                            ticks: { color: '#3d5BA6' } 
+                            grid: { color: 'rgba(152, 197, 237, 0.3)' },
+                            ticks: { color: '#3D5BA6', font: { family: 'Gotham' } }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const month = filteredPeriods[index];
+                            monthFilterSelect.value = month;
+                            createCharts();
                         }
                     }
                 }
@@ -1014,27 +1065,25 @@
                 case 'calls': return 'Total Calls';
                 case 'success': return 'Successful Calls';
                 case 'declines': return 'Declined Calls';
-                case 'rate': return 'Success Rate';
+                case 'rate': return 'Success Rate (%)';
                 default: return 'Total Calls';
             }
         }
 
-        function showError(message) {
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        function hideError() {
-            errorDiv.style.display = 'none';
-        }
-
-        function showLoading(show) {
-            loading.style.display = show ? 'block' : 'none';
+        function downloadChart(chartId, title) {
+            const canvas = document.getElementById(chartId);
+            html2canvas(canvas).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `${title}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
         }
 
         if (Object.keys(processedData).length > 0) {
-            viewReportsButton.style.display = 'block';
             showReports();
+        } else {
+            viewReportsButton.style.display = 'block';
         }
     </script>
 </body>
