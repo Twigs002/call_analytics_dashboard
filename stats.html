@@ -80,7 +80,7 @@
             color: #3D5BA6;
         }
 
-        select, button {
+        select {
             padding: 10px 15px;
             border: 2px solid #98C5ED;
             border-radius: 10px;
@@ -92,19 +92,10 @@
             font-weight: 400;
         }
 
-        select:focus, button:focus {
+        select:focus {
             outline: none;
             border-color: #FDC503;
             box-shadow: 0 0 0 3px rgba(253, 197, 3, 0.2);
-        }
-
-        button:hover {
-            background: #FDC503;
-            color: white;
-        }
-
-        button i {
-            margin-right: 5px;
         }
 
         table {
@@ -212,7 +203,6 @@
                     <option value="all">All Callers</option>
                 </select>
             </label>
-            <button id="sortButton"><i class="fas fa-sort"></i> Sort</button>
         </div>
 
         <table id="statsTable" style="display: none;">
@@ -237,14 +227,11 @@
 
         const errorDiv = document.getElementById('errorMessage');
         const loading = document.getElementById('loading');
-        const sortTypeSelect = document.getElementById('sortType');
         const monthFilterSelect = document.getElementById('monthFilter');
         const callerFilterSelect = document.getElementById('callerFilter');
-        const sortButton = document.getElementById('sortButton');
         const statsTable = document.getElementById('statsTable');
         const statsBody = document.getElementById('statsBody');
 
-        sortButton.addEventListener('click', updateStatsTable);
         monthFilterSelect.addEventListener('change', updateStatsTable);
         callerFilterSelect.addEventListener('change', updateStatsTable);
 
@@ -296,7 +283,6 @@
         }
 
         function updateStatsTable() {
-            const sortType = sortTypeSelect.value;
             const callerFilter = callerFilterSelect.value;
             const selectedMonth = monthFilterSelect.value;
 
@@ -330,41 +316,26 @@
                 return;
             }
 
-            // Apply sorting from select dropdown
-            if (sortType === 'calls-desc') {
-                rows.sort((a, b) => b.calls - a.calls || a.caller.localeCompare(b.caller));
-            } else if (sortType === 'rate-asc') {
-                rows.sort((a, b) => a.rate - b.rate || a.caller.localeCompare(b.caller));
-            } else {
-                rows.sort((a, b) => {
-                    const dateA = a.period === 'Current Period' ? new Date(0) : new Date(a.period);
-                    const dateB = b.period === 'Current Period' ? new Date(0) : new Date(b.period);
-                    return a.caller.localeCompare(b.caller) || dateA - dateB;
-                });
-            }
-
             // Apply column sorting
-            if (sortColumn) {
-                rows.sort((a, b) => {
-                    let valueA = a[sortColumn];
-                    let valueB = b[sortColumn];
-                    if (sortColumn === 'caller') {
-                        valueA = valueA.toLowerCase();
-                        valueB = valueB.toLowerCase();
-                    } else if (sortColumn === 'period') {
-                        valueA = a.period === 'Current Period' ? new Date(0) : new Date(a.period);
-                        valueB = b.period === 'Current Period' ? new Date(0) : new Date(b.period);
-                    } else {
-                        valueA = Number(valueA);
-                        valueB = Number(valueB);
-                    }
-                    if (sortDirection === 'asc') {
-                        return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
-                    } else {
-                        return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
-                    }
-                });
-            }
+            rows.sort((a, b) => {
+                let valueA = a[sortColumn];
+                let valueB = b[sortColumn];
+                if (sortColumn === 'caller') {
+                    valueA = valueA.toLowerCase();
+                    valueB = valueB.toLowerCase();
+                } else if (sortColumn === 'period') {
+                    valueA = a.period === 'Current Period' ? new Date(0) : new Date(a.period);
+                    valueB = b.period === 'Current Period' ? new Date(0) : new Date(b.period);
+                } else {
+                    valueA = Number(valueA);
+                    valueB = Number(valueB);
+                }
+                if (sortDirection === 'asc') {
+                    return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+                } else {
+                    return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
+                }
+            });
 
             statsBody.innerHTML = rows.map(row => `
                 <tr>
