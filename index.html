@@ -384,12 +384,12 @@
 
         viewReportsButton.addEventListener('click', showReports);
         clearDataButton.addEventListener('click', clearStoredData);
-        viewTypeSelect.addEventListener('change', createCharts);
+        viewTypeSelect.addEventListener('change', () => { updateStats(); createCharts(); });
         metricTypeSelect.addEventListener('change', createCharts);
-        monthFilterSelect.addEventListener('change', createCharts);
+        monthFilterSelect.addEventListener('change', () => { updateStats(); createCharts(); });
         startMonthSelect.addEventListener('change', createCharts);
         endMonthSelect.addEventListener('change', createCharts);
-        callerFilterSelect.addEventListener('change', createCharts);
+        callerFilterSelect.addEventListener('change', () => { updateStats(); createCharts(); });
         toggleReportsButton.addEventListener('click', toggleReports);
 
         // Check for admin mode via query parameter (placeholder)
@@ -493,7 +493,8 @@
             const monthSummaryTable = document.getElementById('monthSummaryTable');
             const callerFilter = callerFilterSelect.value;
             const selectedMonth = monthFilterSelect.value;
-            
+
+            // Apply caller filter
             let filteredData = processedData;
             if (callerFilter !== 'all') {
                 filteredData = { [callerFilter]: processedData[callerFilter] || {} };
@@ -509,6 +510,7 @@
                 }
             });
 
+            // If no data after filtering, show placeholder
             if (Object.keys(monthFilteredData).length === 0) {
                 statsGrid.innerHTML = '<div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">No Data Available</div></div>';
                 monthSummaryTable.innerHTML = '';
@@ -516,12 +518,13 @@
                 return;
             }
 
+            // Calculate stats for filtered data
             const totalCallers = Object.keys(monthFilteredData).length;
             let totalCalls = 0, totalSuccess = 0, totalDeclines = 0;
             const monthTotals = {};
 
-            Object.entries(monthFilteredData).forEach(([caller, callerData]) => {
-                Object.entries(callerData).forEach(([period, stats]) => {
+            Object.entries(monthFilteredData).forEach(([caller, periods]) => {
+                Object.entries(periods).forEach(([period, stats]) => {
                     if (!monthTotals[period]) {
                         monthTotals[period] = { calls: 0, success: 0, declines: 0 };
                     }
@@ -536,7 +539,7 @@
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
-            // Top performer: highest total calls, with success rate as tiebreaker
+            // Calculate top performer: highest calls, success rate as tiebreaker
             let topCaller = null;
             let maxCalls = -1;
             let maxSuccessRate = -1;
@@ -554,8 +557,9 @@
                 }
             });
 
+            // Update stats grid
             statsGrid.innerHTML = `
-                <div class="stat-item" ${topCaller ? `onclick="callerFilterSelect.value='${topCaller}'; createCharts();"` : ''}>
+                <div class="stat-item" ${topCaller ? `onclick="callerFilterSelect.value='${topCaller}'; updateStats(); createCharts();"` : ''}>
                     <div class="stat-value">${topCaller || 'N/A'}</div>
                     <div class="stat-label">Top Performer</div>
                 </div>
@@ -577,6 +581,7 @@
                 </div>
             `;
 
+            // Update monthly summary table
             const sortedPeriods = Object.keys(monthTotals).sort((a, b) => {
                 const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
                 const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
@@ -757,6 +762,7 @@
                                 const index = elements[0].index;
                                 const month = filteredPeriods[index];
                                 monthFilterSelect.value = month;
+                                updateStats();
                                 createCharts();
                             }
                         }
@@ -863,6 +869,7 @@
                             const index = elements[0].index;
                             const month = filteredPeriods[index];
                             monthFilterSelect.value = month;
+                            updateStats();
                             createCharts();
                         }
                     }
@@ -979,6 +986,7 @@
                             const index = elements[0].index;
                             const month = filteredPeriods[index];
                             monthFilterSelect.value = month;
+                            updateStats();
                             createCharts();
                         }
                     }
@@ -1101,6 +1109,7 @@
                             const index = elements[0].index;
                             const month = filteredPeriods[index];
                             monthFilterSelect.value = month;
+                            updateStats();
                             createCharts();
                         }
                     }
