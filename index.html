@@ -503,15 +503,17 @@
             // Apply month filter
             let monthFilteredData = {};
             Object.entries(filteredData).forEach(([caller, periods]) => {
+                monthFilteredData[caller] = {};
                 if (selectedMonth === 'all') {
                     monthFilteredData[caller] = periods;
                 } else if (periods[selectedMonth]) {
-                    monthFilteredData[caller] = { [selectedMonth]: periods[selectedMonth] };
+                    monthFilteredData[caller][selectedMonth] = periods[selectedMonth];
                 }
             });
 
             // If no data after filtering, show placeholder
-            if (Object.keys(monthFilteredData).length === 0) {
+            if (Object.keys(monthFilteredData).length === 0 || 
+                Object.values(monthFilteredData).every(periods => Object.keys(periods).length === 0)) {
                 statsGrid.innerHTML = '<div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">No Data Available</div></div>';
                 monthSummaryTable.innerHTML = '';
                 document.getElementById('monthSummary').style.display = 'none';
@@ -519,11 +521,14 @@
             }
 
             // Calculate stats for filtered data
-            const totalCallers = Object.keys(monthFilteredData).length;
+            let totalCallers = 0;
             let totalCalls = 0, totalSuccess = 0, totalDeclines = 0;
             const monthTotals = {};
 
             Object.entries(monthFilteredData).forEach(([caller, periods]) => {
+                if (Object.keys(periods).length > 0) {
+                    totalCallers++; // Only count callers with data for the selected period
+                }
                 Object.entries(periods).forEach(([period, stats]) => {
                     if (!monthTotals[period]) {
                         monthTotals[period] = { calls: 0, success: 0, declines: 0 };
