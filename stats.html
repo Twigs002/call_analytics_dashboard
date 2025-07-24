@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Call Analytics Stats - Quay 1</title>
-    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Gotham:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Gotham:wght@400;500;700&display=swap');
-        
         * {
             margin: 0;
             padding: 0;
@@ -39,17 +37,11 @@
         }
 
         .header h1 {
-            font-family: 'Permanent Marker', cursive;
+            font-family: 'Gotham', sans-serif;
+            font-weight: 700;
             font-size: 2.5rem;
             color: #3D5BA6;
             text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
-        }
-
-        .header h1 span {
-            display: block;
-            font-size: 1.2rem;
-            font-weight: 400;
-            color: #FD5C03;
         }
 
         .nav-bar {
@@ -133,7 +125,17 @@
         th {
             background: #3D5BA6;
             color: white;
-            font-family: 'Permanent Marker', cursive;
+            font-family: 'Gotham', sans-serif;
+            cursor: pointer;
+        }
+
+        th:hover {
+            background: #FDC503;
+        }
+
+        th i {
+            margin-left: 5px;
+            opacity: 0.7;
         }
 
         td {
@@ -185,7 +187,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>QUAY 1 INTERNATIONAL REALTY<br><span>Navigating Success</span></h1>
+            <h1>QUAY 1 INTERNATIONAL REALTY</h1>
         </div>
         
         <div class="nav-bar">
@@ -207,6 +209,13 @@
                 </select>
             </label>
             <label>
+                <strong>Month:</strong>
+                <select id="monthFilter">
+                    <option value="all">All Months</option>
+                    <option value="2025-06">June 2025</option>
+                </select>
+            </label>
+            <label>
                 <strong>Caller:</strong>
                 <select id="callerFilter">
                     <option value="all">All Callers</option>
@@ -218,12 +227,12 @@
         <table id="statsTable" style="display: none;">
             <thead>
                 <tr>
-                    <th>Caller</th>
-                    <th>Month</th>
-                    <th>Total Calls</th>
-                    <th>Successful Calls</th>
-                    <th>Declined Calls</th>
-                    <th>Success Rate (%)</th>
+                    <th onclick="sortTable('caller')">Caller <i class="fas fa-sort"></i></th>
+                    <th onclick="sortTable('period')">Month <i class="fas fa-sort"></i></th>
+                    <th onclick="sortTable('calls')">Total Calls <i class="fas fa-sort"></i></th>
+                    <th onclick="sortTable('success')">Successful Calls <i class="fas fa-sort"></i></th>
+                    <th onclick="sortTable('declines')">Declined Calls <i class="fas fa-sort"></i></th>
+                    <th onclick="sortTable('rate')">Success Rate (%) <i class="fas fa-sort"></i></th>
                 </tr>
             </thead>
             <tbody id="statsBody"></tbody>
@@ -232,16 +241,20 @@
 
     <script>
         let processedData = JSON.parse(localStorage.getItem('callAnalyticsData')) || {};
+        let sortColumn = 'caller';
+        let sortDirection = 'asc';
 
         const errorDiv = document.getElementById('errorMessage');
         const loading = document.getElementById('loading');
         const sortTypeSelect = document.getElementById('sortType');
+        const monthFilterSelect = document.getElementById('monthFilter');
         const callerFilterSelect = document.getElementById('callerFilter');
         const sortButton = document.getElementById('sortButton');
         const statsTable = document.getElementById('statsTable');
         const statsBody = document.getElementById('statsBody');
 
         sortButton.addEventListener('click', updateStatsTable);
+        monthFilterSelect.addEventListener('change', updateStatsTable);
         callerFilterSelect.addEventListener('change', updateStatsTable);
 
         function showError(message) {
@@ -264,17 +277,39 @@
             });
         }
 
+        function sortTable(column) {
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            updateStatsTable();
+        }
+
         function updateStatsTable() {
             const sortType = sortTypeSelect.value;
             const callerFilter = callerFilterSelect.value;
-            
+            const selectedMonth = monthFilterSelect.value;
+
             let filteredData = processedData;
             if (callerFilter !== 'all') {
                 filteredData = { [callerFilter]: processedData[callerFilter] || {} };
             }
 
-            const rows = [];
+            // Apply month filter
+            let monthFilteredData = {};
             Object.entries(filteredData).forEach(([caller, periods]) => {
+                monthFilteredData[caller] = {};
+                if (selectedMonth === 'all') {
+                    monthFilteredData[caller] = periods;
+                } else if (periods[selectedMonth]) {
+                    monthFilteredData[caller][selectedMonth] = periods[selectedMonth];
+                }
+            });
+
+            const rows = [];
+            Object.entries(monthFilteredData).forEach(([caller, periods]) => {
                 Object.entries(periods).forEach(([period, stats]) => {
                     const successRate = stats.calls > 0 ? ((stats.success / stats.calls) * 100).toFixed(1) : 0;
                     rows.push({ caller, period, ...stats, rate: successRate });
@@ -287,6 +322,7 @@
                 return;
             }
 
+            // Apply sorting from select dropdown
             if (sortType === 'calls-desc') {
                 rows.sort((a, b) => b.calls - a.calls || a.caller.localeCompare(b.caller));
             } else if (sortType === 'rate-asc') {
@@ -296,6 +332,29 @@
                     const dateA = a.period === 'Current Period' ? new Date(0) : new Date(a.period);
                     const dateB = b.period === 'Current Period' ? new Date(0) : new Date(b.period);
                     return a.caller.localeCompare(b.caller) || dateA - dateB;
+                });
+            }
+
+            // Apply column sorting
+            if (sortColumn) {
+                rows.sort((a, b) => {
+                    let valueA = a[sortColumn];
+                    let valueB = b[sortColumn];
+                    if (sortColumn === 'caller') {
+                        valueA = valueA.toLowerCase();
+                        valueB = valueB.toLowerCase();
+                    } else if (sortColumn === 'period') {
+                        valueA = a.period === 'Current Period' ? new Date(0) : new Date(a.period);
+                        valueB = b.period === 'Current Period' ? new Date(0) : new Date(b.period);
+                    } else {
+                        valueA = Number(valueA);
+                        valueB = Number(valueB);
+                    }
+                    if (sortDirection === 'asc') {
+                        return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+                    } else {
+                        return valueA > valueB ? -1 : valueA < valueB ? 1 : 0;
+                    }
                 });
             }
 
