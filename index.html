@@ -98,6 +98,10 @@
             font-weight: 400;
         }
 
+        select[multiple] {
+            height: 100px; /* Adjust height for multi-select visibility */
+        }
+
         select:focus, button:focus {
             outline: none;
             border-color: #FDC503;
@@ -170,17 +174,20 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr); /* 3 columns for top performers */
-            grid-template-rows: auto auto; /* Two rows: one for performers, one for totals */
+            grid-template-columns: repeat(5, 1fr); /* 5 columns total */
+            grid-template-rows: auto auto; /* Two rows */
             gap: 20px;
+            justify-content: center; /* Center the grid content */
         }
 
         .stats-grid .top-performer {
             grid-row: 1; /* Top performers on first row */
+            grid-column: 2 / 5; /* Center by spanning columns 2 to 4 (out of 5) */
         }
 
         .stats-grid .total-stat {
             grid-row: 2; /* Totals on second row */
+            grid-column: span 1; /* Each total stat takes one column */
         }
 
         .stat-item {
@@ -290,6 +297,7 @@
 
             .stats-grid .top-performer, .stats-grid .total-stat {
                 grid-row: auto; /* Allow stacking */
+                grid-column: span 1; /* Each item takes full width */
             }
 
             .month-summary table {
@@ -352,8 +360,8 @@
                 </select>
             </label>
             <label>
-                <strong>Caller:</strong>
-                <select id="callerFilter">
+                <strong>Callers:</strong>
+                <select id="callerFilter" multiple>
                     <option value="all">All Callers</option>
                 </select>
             </label>
@@ -509,13 +517,15 @@
         function updateStats() {
             const statsGrid = document.getElementById('statsGrid');
             const monthSummaryTable = document.getElementById('monthSummaryTable');
-            const callerFilter = callerFilterSelect.value;
             const selectedMonth = monthFilterSelect.value;
 
-            // Apply caller filter
+            // Get selected callers (multiple selection)
+            const selectedCallers = Array.from(callerFilterSelect.selectedOptions).map(option => option.value);
             let filteredData = processedData;
-            if (callerFilter !== 'all') {
-                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
+            if (selectedCallers.length > 0 && !selectedCallers.includes('all')) {
+                filteredData = Object.fromEntries(
+                    Object.entries(processedData).filter(([caller]) => selectedCallers.includes(caller))
+                );
             }
 
             // Apply month filter
@@ -577,7 +587,7 @@
                 .sort((a, b) => b.calls - a.calls || b.successRate - a.successRate)
                 .slice(0, 3);
 
-            // Update stats grid with top 3 performers on first row and totals on second row
+            // Update stats grid with top 3 performers centered on first row and totals evenly sized on second row
             statsGrid.innerHTML = `
                 ${topPerformers.map((performer, index) => `
                     <div class="stat-item top-performer" onclick="callerFilterSelect.value='${performer.caller}'; updateStats(); createCharts();">
@@ -639,7 +649,7 @@
             const selectedMonth = monthFilterSelect.value;
             const startMonth = startMonthSelect.value;
             const endMonth = endMonthSelect.value;
-            const callerFilter = callerFilterSelect.value;
+            const selectedCallers = Array.from(callerFilterSelect.selectedOptions).map(option => option.value);
 
             Object.values(charts).forEach(chart => chart.destroy());
             charts = {};
@@ -667,8 +677,10 @@
             }
 
             let filteredData = processedData;
-            if (callerFilter !== 'all') {
-                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
+            if (selectedCallers.length > 0 && !selectedCallers.includes('all')) {
+                filteredData = Object.fromEntries(
+                    Object.entries(processedData).filter(([caller]) => selectedCallers.includes(caller))
+                );
             }
 
             if (filteredPeriods.length === 0 || Object.keys(filteredData).length === 0) {
