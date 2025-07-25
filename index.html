@@ -170,17 +170,8 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr); /* 3 columns for top performers */
-            grid-template-rows: auto auto; /* Two rows: one for performers, one for totals */
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-        }
-
-        .stats-grid .top-performer {
-            grid-row: 1; /* Top performers on first row */
-        }
-
-        .stats-grid .total-stat {
-            grid-row: 2; /* Totals on second row */
         }
 
         .stat-item {
@@ -281,15 +272,6 @@
             .nav-bar {
                 flex-direction: column;
                 gap: 10px;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr; /* Stack vertically on small screens */
-                grid-template-rows: auto; /* Reset rows for mobile */
-            }
-
-            .stats-grid .top-performer, .stats-grid .total-stat {
-                grid-row: auto; /* Allow stacking */
             }
 
             .month-summary table {
@@ -449,7 +431,7 @@
         }
 
         function clearStoredData() {
-            if (confirm('Are you sure you want to clear all stored data? Make good life choices :) - remember what happened with the phones.')) {
+            if (confirm('Are you sure you want to clear all stored data? This cannot be undone.')) {
                 processedData = {};
                 localStorage.removeItem('callAnalyticsData');
                 localStorage.removeItem('importedHashes');
@@ -545,7 +527,7 @@
 
             Object.entries(monthFilteredData).forEach(([caller, periods]) => {
                 if (Object.keys(periods).length > 0) {
-                    totalCallers++;
+                    totalCallers++; // Only count callers with data for the selected period
                 }
                 Object.entries(periods).forEach(([period, stats]) => {
                     if (!monthTotals[period]) {
@@ -562,42 +544,43 @@
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
-            // Calculate top 3 performers: highest calls, success rate as tiebreaker
-            const callerStats = Object.entries(monthFilteredData).map(([caller, periods]) => {
+            // Calculate top performer: highest calls, success rate as tiebreaker
+            let topCaller = null;
+            let maxCalls = -1;
+            let maxSuccessRate = -1;
+            Object.entries(monthFilteredData).forEach(([caller, periods]) => {
                 let callerCalls = 0, callerSuccess = 0;
                 Object.values(periods).forEach(stats => {
                     callerCalls += stats.calls;
                     callerSuccess += stats.success;
                 });
                 const callerRate = callerCalls > 0 ? (callerSuccess / callerCalls * 100) : 0;
-                return { caller, calls: callerCalls, successRate: callerRate };
+                if (callerCalls > maxCalls || (callerCalls === maxCalls && callerRate > maxSuccessRate)) {
+                    maxCalls = callerCalls;
+                    maxSuccessRate = callerRate;
+                    topCaller = caller;
+                }
             });
 
-            const topPerformers = callerStats
-                .sort((a, b) => b.calls - a.calls || b.successRate - a.successRate)
-                .slice(0, 3);
-
-            // Update stats grid with top 3 performers on first row and totals on second row
+            // Update stats grid
             statsGrid.innerHTML = `
-                ${topPerformers.map((performer, index) => `
-                    <div class="stat-item top-performer" onclick="callerFilterSelect.value='${performer.caller}'; updateStats(); createCharts();">
-                        <div class="stat-value">${performer.caller}</div>
-                        <div class="stat-label">Top Performer #${index + 1}</div>
-                    </div>
-                `).join('')}
-                <div class="stat-item total-stat">
+                <div class="stat-item" ${topCaller ? `onclick="callerFilterSelect.value='${topCaller}'; updateStats(); createCharts();"` : ''}>
+                    <div class="stat-value">${topCaller || 'N/A'}</div>
+                    <div class="stat-label">Top Performer</div>
+                </div>
+                <div class="stat-item">
                     <div class="stat-value">${totalCallers}</div>
                     <div class="stat-label">Total Callers</div>
                 </div>
-                <div class="stat-item total-stat">
+                <div class="stat-item">
                     <div class="stat-value">${totalCalls.toLocaleString()}</div>
                     <div class="stat-label">Total Calls</div>
                 </div>
-                <div class="stat-item total-stat">
+                <div class="stat-item">
                     <div class="stat-value">${totalSuccess.toLocaleString()}</div>
                     <div class="stat-label">Successful</div>
                 </div>
-                <div class="stat-item total-stat">
+                <div class="stat-item">
                     <div class="stat-value">${successRate}%</div>
                     <div class="stat-label">Success Rate</div>
                 </div>
