@@ -170,8 +170,14 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-areas:
+                "top1 top2 top3"
+                ". . ."
+                ". . ."
+                "stat1 stat2 stat3 stat4";
             gap: 20px;
+            justify-content: center;
+            align-items: center;
         }
 
         .stat-item {
@@ -272,6 +278,14 @@
             .nav-bar {
                 flex-direction: column;
                 gap: 10px;
+            }
+
+            .stats-grid {
+                grid-template-areas:
+                    "top1"
+                    "top2"
+                    "top3"
+                    "stat1 stat2 stat3 stat4";
             }
 
             .month-summary table {
@@ -514,7 +528,15 @@
             // If no data after filtering, show placeholder
             if (Object.keys(monthFilteredData).length === 0 || 
                 Object.values(monthFilteredData).every(periods => Object.keys(periods).length === 0)) {
-                statsGrid.innerHTML = '<div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">No Data Available</div></div>';
+                statsGrid.innerHTML = `
+                    <div class="stat-item" style="grid-area: top1;"><div class="stat-value">N/A</div><div class="stat-label">Top 1</div></div>
+                    <div class="stat-item" style="grid-area: top2;"><div class="stat-value">N/A</div><div class="stat-label">Top 2</div></div>
+                    <div class="stat-item" style="grid-area: top3;"><div class="stat-value">N/A</div><div class="stat-label">Top 3</div></div>
+                    <div class="stat-item" style="grid-area: stat1;"><div class="stat-value">N/A</div><div class="stat-label">Total Callers</div></div>
+                    <div class="stat-item" style="grid-area: stat2;"><div class="stat-value">N/A</div><div class="stat-label">Total Calls</div></div>
+                    <div class="stat-item" style="grid-area: stat3;"><div class="stat-value">N/A</div><div class="stat-label">Successful</div></div>
+                    <div class="stat-item" style="grid-area: stat4;"><div class="stat-value">N/A</div><div class="stat-label">Success Rate</div></div>
+                `;
                 monthSummaryTable.innerHTML = '';
                 document.getElementById('monthSummary').style.display = 'none';
                 return;
@@ -544,10 +566,9 @@
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
-            // Calculate top performer: highest calls, success rate as tiebreaker
-            let topCaller = null;
-            let maxCalls = -1;
-            let maxSuccessRate = -1;
+            // Calculate top 3 performers: highest calls, success rate as tiebreaker
+            const topPerformers = [];
+            const callerStats = {};
             Object.entries(monthFilteredData).forEach(([caller, periods]) => {
                 let callerCalls = 0, callerSuccess = 0;
                 Object.values(periods).forEach(stats => {
@@ -555,32 +576,38 @@
                     callerSuccess += stats.success;
                 });
                 const callerRate = callerCalls > 0 ? (callerSuccess / callerCalls * 100) : 0;
-                if (callerCalls > maxCalls || (callerCalls === maxCalls && callerRate > maxSuccessRate)) {
-                    maxCalls = callerCalls;
-                    maxSuccessRate = callerRate;
-                    topCaller = caller;
-                }
+                callerStats[caller] = { calls: callerCalls, rate: callerRate };
+                topPerformers.push({ caller, calls: callerCalls, rate: callerRate });
             });
+            topPerformers.sort((a, b) => b.calls - a.calls || b.rate - a.rate).slice(0, 3);
 
             // Update stats grid
             statsGrid.innerHTML = `
-                <div class="stat-item" ${topCaller ? `onclick="callerFilterSelect.value='${topCaller}'; updateStats(); createCharts();"` : ''}>
-                    <div class="stat-value">${topCaller || 'N/A'}</div>
-                    <div class="stat-label">Top Performer</div>
+                <div class="stat-item" style="grid-area: top1;" ${topPerformers[0] ? `onclick="callerFilterSelect.value='${topPerformers[0].caller}'; updateStats(); createCharts();"` : ''}>
+                    <div class="stat-value">${topPerformers[0] ? topPerformers[0].caller : 'N/A'}</div>
+                    <div class="stat-label">Top 1</div>
                 </div>
-                <div class="stat-item">
+                <div class="stat-item" style="grid-area: top2;" ${topPerformers[1] ? `onclick="callerFilterSelect.value='${topPerformers[1].caller}'; updateStats(); createCharts();"` : ''}>
+                    <div class="stat-value">${topPerformers[1] ? topPerformers[1].caller : 'N/A'}</div>
+                    <div class="stat-label">Top 2</div>
+                </div>
+                <div class="stat-item" style="grid-area: top3;" ${topPerformers[2] ? `onclick="callerFilterSelect.value='${topPerformers[2].caller}'; updateStats(); createCharts();"` : ''}>
+                    <div class="stat-value">${topPerformers[2] ? topPerformers[2].caller : 'N/A'}</div>
+                    <div class="stat-label">Top 3</div>
+                </div>
+                <div class="stat-item" style="grid-area: stat1;">
                     <div class="stat-value">${totalCallers}</div>
                     <div class="stat-label">Total Callers</div>
                 </div>
-                <div class="stat-item">
+                <div class="stat-item" style="grid-area: stat2;">
                     <div class="stat-value">${totalCalls.toLocaleString()}</div>
                     <div class="stat-label">Total Calls</div>
                 </div>
-                <div class="stat-item">
+                <div class="stat-item" style="grid-area: stat3;">
                     <div class="stat-value">${totalSuccess.toLocaleString()}</div>
                     <div class="stat-label">Successful</div>
                 </div>
-                <div class="stat-item">
+                <div class="stat-item" style="grid-area: stat4;">
                     <div class="stat-value">${successRate}%</div>
                     <div class="stat-label">Success Rate</div>
                 </div>
