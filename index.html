@@ -98,6 +98,26 @@
             font-weight: 400;
         }
 
+        select[multiple] {
+            height: 40px;
+            overflow: hidden;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            position: relative;
+            padding: 0 15px;
+        }
+
+        select[multiple] option {
+            padding: 5px;
+            background: white;
+        }
+
+        select[multiple] option:checked {
+            background: #FDC503;
+            color: white;
+        }
+
         select:focus, button:focus {
             outline: none;
             border-color: #FDC503;
@@ -170,20 +190,51 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr); /* 3 columns for top performers */
-            grid-template-rows: auto auto; /* Two rows: one for performers, one for totals */
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr; /* 5 columns total */
+            grid-template-rows: auto auto; /* Two rows */
             gap: 20px;
+            justify-content: center; /* Center the grid content */
         }
 
         .stats-grid .top-performer {
             grid-row: 1; /* Top performers on first row */
+            grid-column: 2 / 5; /* Span columns 2 to 4 (out of 5) for equal spacing */
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .stats-grid .top-performer:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-grid .top-performer .stat-value {
+            font-size: 1.8rem;
+            color: #FDC503;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stats-grid .top-performer .stat-label {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 1rem;
+            color: #fff;
+            background: #3D5BA6;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-block;
         }
 
         .stats-grid .total-stat {
             grid-row: 2; /* Totals on second row */
-        }
-
-        .stat-item {
+            grid-column: span 1; /* Each total stat takes one column */
             text-align: center;
             padding: 15px;
             background: rgba(255, 255, 255, 0.15);
@@ -194,7 +245,7 @@
             transition: transform 0.3s ease;
         }
 
-        .stat-item:hover {
+        .stats-grid .total-stat:hover {
             transform: scale(1.05);
             background: rgba(253, 197, 3, 0.2);
         }
@@ -290,6 +341,11 @@
 
             .stats-grid .top-performer, .stats-grid .total-stat {
                 grid-row: auto; /* Allow stacking */
+                grid-column: span 1; /* Each item takes full width */
+            }
+
+            select[multiple] {
+                height: 40px;
             }
 
             .month-summary table {
@@ -352,8 +408,8 @@
                 </select>
             </label>
             <label>
-                <strong>Caller:</strong>
-                <select id="callerFilter">
+                <strong>Callers:</strong>
+                <select id="callerFilter" multiple>
                     <option value="all">All Callers</option>
                 </select>
             </label>
@@ -509,13 +565,15 @@
         function updateStats() {
             const statsGrid = document.getElementById('statsGrid');
             const monthSummaryTable = document.getElementById('monthSummaryTable');
-            const callerFilter = callerFilterSelect.value;
             const selectedMonth = monthFilterSelect.value;
 
-            // Apply caller filter
+            // Get selected callers from multi-select
+            const selectedCallers = Array.from(callerFilterSelect.selectedOptions).map(option => option.value);
             let filteredData = processedData;
-            if (callerFilter !== 'all') {
-                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
+            if (selectedCallers.length > 0 && !selectedCallers.includes('all')) {
+                filteredData = Object.fromEntries(
+                    Object.entries(processedData).filter(([caller]) => selectedCallers.includes(caller))
+                );
             }
 
             // Apply month filter
@@ -551,17 +609,14 @@
                     if (!monthTotals[period]) {
                         monthTotals[period] = { calls: 0, success: 0, declines: 0 };
                     }
-                    monthTotals[period].calls += stats.calls || 0;
-                    monthTotals[period].success += stats.success || 0; // Default to 0 if undefined
-                    monthTotals[period].declines += stats.declines || 0;
-                    totalCalls += stats.calls || 0;
-                    totalSuccess += stats.success || 0; // Default to 0 if undefined
-                    totalDeclines += stats.declines || 0;
+                    monthTotals[period].calls += stats.calls;
+                    monthTotals[period].success += stats.success;
+                    monthTotals[period].declines += stats.declines;
+                    totalCalls += stats.calls;
+                    totalSuccess += stats.success;
+                    totalDeclines += stats.declines;
                 });
             });
-
-            console.log("Total Success:", totalSuccess); // Debug log for total successes
-            console.log("Month Totals:", monthTotals); // Debug log for monthly breakdown
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
@@ -569,8 +624,8 @@
             const callerStats = Object.entries(monthFilteredData).map(([caller, periods]) => {
                 let callerCalls = 0, callerSuccess = 0;
                 Object.values(periods).forEach(stats => {
-                    callerCalls += stats.calls || 0;
-                    callerSuccess += stats.success || 0;
+                    callerCalls += stats.calls;
+                    callerSuccess += stats.success;
                 });
                 const callerRate = callerCalls > 0 ? (callerSuccess / callerCalls * 100) : 0;
                 return { caller, calls: callerCalls, successRate: callerRate };
@@ -642,7 +697,7 @@
             const selectedMonth = monthFilterSelect.value;
             const startMonth = startMonthSelect.value;
             const endMonth = endMonthSelect.value;
-            const callerFilter = callerFilterSelect.value;
+            const selectedCallers = Array.from(callerFilterSelect.selectedOptions).map(option => option.value);
 
             Object.values(charts).forEach(chart => chart.destroy());
             charts = {};
@@ -670,8 +725,10 @@
             }
 
             let filteredData = processedData;
-            if (callerFilter !== 'all') {
-                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
+            if (selectedCallers.length > 0 && !selectedCallers.includes('all')) {
+                filteredData = Object.fromEntries(
+                    Object.entries(processedData).filter(([caller]) => selectedCallers.includes(caller))
+                );
             }
 
             if (filteredPeriods.length === 0 || Object.keys(filteredData).length === 0) {
