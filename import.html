@@ -337,11 +337,9 @@
 
                         processedData[caller][period].calls += 1;
                         
-                        if (result.includes('success') || result.includes('answered') || result.includes('connected')) {
+                        if (result === 'success/$none') {
                             processedData[caller][period].success += 1;
-                        } else if (result.includes('declined') || result.includes('busy') || result.includes('no answer') || result.includes('failed')) {
-                            processedData[caller][period].declines += 1;
-                        } else {
+                        } else if (result === 'declined/$none') {
                             processedData[caller][period].declines += 1;
                         }
                         
