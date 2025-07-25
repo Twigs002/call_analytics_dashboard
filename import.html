@@ -38,7 +38,7 @@
             color: #3d5BA6;
             margin-bottom: 30px;
             font-size: 2.5rem;
-            font-family: 'Permanent+Marker', cursive;
+            font-family: 'Permanent Marker', cursive;
             text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
         }
 
@@ -196,7 +196,7 @@
 
         function handleFileUpload(file) {
             if (!file.name.toLowerCase().endsWith('.csv')) {
-                showError('Please upload a CSV cell.');
+                showError('Please upload a CSV file.');
                 return;
             }
 
@@ -219,7 +219,7 @@
                         return;
                     }
                     csvData = results.data;
-                    console.log('CSV Data:', csvData);
+                    console.log('Raw CSV Data:', csvData);
                     processData();
                     showLoading(false);
                 },
@@ -283,16 +283,19 @@
                 }
 
                 try {
+                    console.log(`Processing Row ${index + 1}:`, callNotes); // Log raw entry
                     const callEntries = callNotes.split(/(?=Dialfire call result:)/i);
                     
                     for (const entry of callEntries) {
-                        const userMatch = entry.match(/Call user:\s*([^@\$\n]+)(?:@|\$|$)/i);
+                        console.log(`Entry:`, entry); // Log each split entry
+                        const userMatch = entry.match(/Call user:\s*([^@\$\n]+)(?:@|\$|\n|$)/i);
                         if (!userMatch) {
                             console.warn(`Row ${index + 1}: No valid Call user found in entry: ${entry}`);
                             continue;
                         }
                         
                         let caller = userMatch[1].trim();
+                        console.log(`Extracted Caller: ${caller}`); // Log extracted caller
                         if (!caller) {
                             console.warn(`Row ${index + 1}: Invalid caller name after cleaning.`);
                             continue;
@@ -305,15 +308,19 @@
                         }
                         
                         const result = resultMatch[1].trim().toLowerCase();
+                        console.log(`Extracted Result: ${result}`); // Log extracted result
                         
                         let period = 'Current Period';
                         if (dateColumn && row[dateColumn]) {
                             const date = new Date(row[dateColumn]);
                             if (!isNaN(date)) {
                                 period = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                                console.log(`Assigned Period: ${period} from date ${row[dateColumn]}`); // Log period
                             } else {
                                 console.warn(`Row ${index + 1}: Invalid date format in ${dateColumn}: ${row[dateColumn]}`);
                             }
+                        } else {
+                            console.log(`No date column or value, using Current Period: ${period}`); // Log default period
                         }
 
                         if (!processedData[caller]) {
@@ -329,11 +336,16 @@
                         }
 
                         processedData[caller][period].calls += 1;
+                        console.log(`Incremented calls for ${caller} in ${period}, now: ${processedData[caller][period].calls}`); // Log calls
                         
                         if (result === 'success') {
                             processedData[caller][period].success += 1;
+                            console.log(`Incremented success for ${caller} in ${period}, now: ${processedData[caller][period].success}`); // Log success
                         } else if (result === 'declined') {
                             processedData[caller][period].declines += 1;
+                            console.log(`Incremented declines for ${caller} in ${period}, now: ${processedData[caller][period].declines}`); // Log declines
+                        } else {
+                            console.warn(`Row ${index + 1}: Unrecognized result "${result}" for ${caller} in ${entry}`);
                         }
                         
                         importedHashes.add(rowHash);
@@ -348,7 +360,7 @@
             localStorage.setItem('callAnalyticsData', JSON.stringify(processedData));
             localStorage.setItem('importedHashes', JSON.stringify(Array.from(importedHashes)));
 
-            console.log('Processed Data:', processedData);
+            console.log('Final Processed Data:', processedData);
             console.log(`Total Processed: ${totalProcessed}, Errors: ${errorCount}, Duplicates Skipped: ${duplicatesSkipped}`);
 
             if (Object.keys(processedData).length === 0 || totalProcessed === 0) {
