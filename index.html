@@ -449,7 +449,7 @@
         }
 
         function clearStoredData() {
-            if (confirm('Are you sure you want to clear all stored data? Make good life choices :) - remember what happened with the phones.')) {
+            if (confirm('Are you sure you want to clear all stored data? This cannot be undone.')) {
                 processedData = {};
                 localStorage.removeItem('callAnalyticsData');
                 localStorage.removeItem('importedHashes');
