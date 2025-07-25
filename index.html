@@ -170,8 +170,17 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(3, 1fr); /* 3 columns for top performers */
+            grid-template-rows: auto auto; /* Two rows: one for performers, one for totals */
             gap: 20px;
+        }
+
+        .stats-grid .top-performer {
+            grid-row: 1; /* Top performers on first row */
+        }
+
+        .stats-grid .total-stat {
+            grid-row: 2; /* Totals on second row */
         }
 
         .stat-item {
@@ -272,6 +281,15 @@
             .nav-bar {
                 flex-direction: column;
                 gap: 10px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr; /* Stack vertically on small screens */
+                grid-template-rows: auto; /* Reset rows for mobile */
+            }
+
+            .stats-grid .top-performer, .stats-grid .total-stat {
+                grid-row: auto; /* Allow stacking */
             }
 
             .month-summary table {
@@ -559,31 +577,31 @@
                 .sort((a, b) => b.calls - a.calls || b.successRate - a.successRate)
                 .slice(0, 3);
 
-            // Update stats grid with top 3 performers followed by totals
-            statsGrid.innerHTML = [
-                ...topPerformers.map((performer, index) => `
-                    <div class="stat-item" onclick="callerFilterSelect.value='${performer.caller}'; updateStats(); createCharts();">
+            // Update stats grid with top 3 performers on first row and totals on second row
+            statsGrid.innerHTML = `
+                ${topPerformers.map((performer, index) => `
+                    <div class="stat-item top-performer" onclick="callerFilterSelect.value='${performer.caller}'; updateStats(); createCharts();">
                         <div class="stat-value">${performer.caller}</div>
                         <div class="stat-label">Top Performer #${index + 1}</div>
                     </div>
-                `),
-                `<div class="stat-item">
+                `).join('')}
+                <div class="stat-item total-stat">
                     <div class="stat-value">${totalCallers}</div>
                     <div class="stat-label">Total Callers</div>
-                </div>`,
-                `<div class="stat-item">
+                </div>
+                <div class="stat-item total-stat">
                     <div class="stat-value">${totalCalls.toLocaleString()}</div>
                     <div class="stat-label">Total Calls</div>
-                </div>`,
-                `<div class="stat-item">
+                </div>
+                <div class="stat-item total-stat">
                     <div class="stat-value">${totalSuccess.toLocaleString()}</div>
                     <div class="stat-label">Successful</div>
-                </div>`,
-                `<div class="stat-item">
+                </div>
+                <div class="stat-item total-stat">
                     <div class="stat-value">${successRate}%</div>
                     <div class="stat-label">Success Rate</div>
-                </div>`
-            ].join('');
+                </div>
+            `;
 
             // Update monthly summary table
             const sortedPeriods = Object.keys(monthTotals).sort((a, b) => {
