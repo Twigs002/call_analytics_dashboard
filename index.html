@@ -98,26 +98,6 @@
             font-weight: 400;
         }
 
-        select[multiple] {
-            height: 40px;
-            overflow: hidden;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            position: relative;
-            padding: 0 15px;
-        }
-
-        select[multiple] option {
-            padding: 5px;
-            background: white;
-        }
-
-        select[multiple] option:checked {
-            background: #FDC503;
-            color: white;
-        }
-
         select:focus, button:focus {
             outline: none;
             border-color: #FDC503;
@@ -190,51 +170,20 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr 1fr; /* 5 columns total */
-            grid-template-rows: auto auto; /* Two rows */
+            grid-template-columns: repeat(3, 1fr); /* 3 columns for top performers */
+            grid-template-rows: auto auto; /* Two rows: one for performers, one for totals */
             gap: 20px;
-            justify-content: center; /* Center the grid content */
         }
 
         .stats-grid .top-performer {
             grid-row: 1; /* Top performers on first row */
-            grid-column: 2 / 5; /* Span columns 2 to 4 (out of 5) for equal spacing */
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            padding: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-
-        .stats-grid .top-performer:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .stats-grid .top-performer .stat-value {
-            font-size: 1.8rem;
-            color: #FDC503;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .stats-grid .top-performer .stat-label {
-            font-family: 'Permanent Marker', cursive;
-            font-size: 1rem;
-            color: #fff;
-            background: #3D5BA6;
-            padding: 5px 10px;
-            border-radius: 5px;
-            display: inline-block;
         }
 
         .stats-grid .total-stat {
             grid-row: 2; /* Totals on second row */
-            grid-column: span 1; /* Each total stat takes one column */
+        }
+
+        .stat-item {
             text-align: center;
             padding: 15px;
             background: rgba(255, 255, 255, 0.15);
@@ -245,7 +194,7 @@
             transition: transform 0.3s ease;
         }
 
-        .stats-grid .total-stat:hover {
+        .stat-item:hover {
             transform: scale(1.05);
             background: rgba(253, 197, 3, 0.2);
         }
@@ -341,11 +290,6 @@
 
             .stats-grid .top-performer, .stats-grid .total-stat {
                 grid-row: auto; /* Allow stacking */
-                grid-column: span 1; /* Each item takes full width */
-            }
-
-            select[multiple] {
-                height: 40px;
             }
 
             .month-summary table {
@@ -408,8 +352,8 @@
                 </select>
             </label>
             <label>
-                <strong>Callers:</strong>
-                <select id="callerFilter" multiple>
+                <strong>Caller:</strong>
+                <select id="callerFilter">
                     <option value="all">All Callers</option>
                 </select>
             </label>
@@ -565,15 +509,13 @@
         function updateStats() {
             const statsGrid = document.getElementById('statsGrid');
             const monthSummaryTable = document.getElementById('monthSummaryTable');
+            const callerFilter = callerFilterSelect.value;
             const selectedMonth = monthFilterSelect.value;
 
-            // Get selected callers from multi-select
-            const selectedCallers = Array.from(callerFilterSelect.selectedOptions).map(option => option.value);
+            // Apply caller filter
             let filteredData = processedData;
-            if (selectedCallers.length > 0 && !selectedCallers.includes('all')) {
-                filteredData = Object.fromEntries(
-                    Object.entries(processedData).filter(([caller]) => selectedCallers.includes(caller))
-                );
+            if (callerFilter !== 'all') {
+                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
             }
 
             // Apply month filter
@@ -697,7 +639,7 @@
             const selectedMonth = monthFilterSelect.value;
             const startMonth = startMonthSelect.value;
             const endMonth = endMonthSelect.value;
-            const selectedCallers = Array.from(callerFilterSelect.selectedOptions).map(option => option.value);
+            const callerFilter = callerFilterSelect.value;
 
             Object.values(charts).forEach(chart => chart.destroy());
             charts = {};
@@ -725,10 +667,8 @@
             }
 
             let filteredData = processedData;
-            if (selectedCallers.length > 0 && !selectedCallers.includes('all')) {
-                filteredData = Object.fromEntries(
-                    Object.entries(processedData).filter(([caller]) => selectedCallers.includes(caller))
-                );
+            if (callerFilter !== 'all') {
+                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
             }
 
             if (filteredPeriods.length === 0 || Object.keys(filteredData).length === 0) {
