@@ -99,9 +99,9 @@
         }
 
         select[multiple] {
-            height: 40px; /* Reduced height to hide checkboxes */
+            height: 40px;
             overflow: hidden;
-            -webkit-appearance: none; /* Remove default dropdown arrow */
+            -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
             position: relative;
@@ -199,14 +199,42 @@
         .stats-grid .top-performer {
             grid-row: 1; /* Top performers on first row */
             grid-column: 2 / 5; /* Span columns 2 to 4 (out of 5) for equal spacing */
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .stats-grid .top-performer:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-grid .top-performer .stat-value {
+            font-size: 1.8rem;
+            color: #FDC503;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stats-grid .top-performer .stat-label {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 1rem;
+            color: #fff;
+            background: #3D5BA6;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: inline-block;
         }
 
         .stats-grid .total-stat {
             grid-row: 2; /* Totals on second row */
             grid-column: span 1; /* Each total stat takes one column */
-        }
-
-        .stat-item {
             text-align: center;
             padding: 15px;
             background: rgba(255, 255, 255, 0.15);
@@ -217,7 +245,7 @@
             transition: transform 0.3s ease;
         }
 
-        .stat-item:hover {
+        .stats-grid .total-stat:hover {
             transform: scale(1.05);
             background: rgba(253, 197, 3, 0.2);
         }
@@ -317,7 +345,7 @@
             }
 
             select[multiple] {
-                height: 40px; /* Keep height consistent */
+                height: 40px;
             }
 
             .month-summary table {
