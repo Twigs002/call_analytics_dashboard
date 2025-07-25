@@ -551,14 +551,17 @@
                     if (!monthTotals[period]) {
                         monthTotals[period] = { calls: 0, success: 0, declines: 0 };
                     }
-                    monthTotals[period].calls += stats.calls;
-                    monthTotals[period].success += stats.success;
-                    monthTotals[period].declines += stats.declines;
-                    totalCalls += stats.calls;
-                    totalSuccess += stats.success;
-                    totalDeclines += stats.declines;
+                    monthTotals[period].calls += stats.calls || 0;
+                    monthTotals[period].success += stats.success || 0; // Default to 0 if undefined
+                    monthTotals[period].declines += stats.declines || 0;
+                    totalCalls += stats.calls || 0;
+                    totalSuccess += stats.success || 0; // Default to 0 if undefined
+                    totalDeclines += stats.declines || 0;
                 });
             });
+
+            console.log("Total Success:", totalSuccess); // Debug log for total successes
+            console.log("Month Totals:", monthTotals); // Debug log for monthly breakdown
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
@@ -566,8 +569,8 @@
             const callerStats = Object.entries(monthFilteredData).map(([caller, periods]) => {
                 let callerCalls = 0, callerSuccess = 0;
                 Object.values(periods).forEach(stats => {
-                    callerCalls += stats.calls;
-                    callerSuccess += stats.success;
+                    callerCalls += stats.calls || 0;
+                    callerSuccess += stats.success || 0;
                 });
                 const callerRate = callerCalls > 0 ? (callerSuccess / callerCalls * 100) : 0;
                 return { caller, calls: callerCalls, successRate: callerRate };
