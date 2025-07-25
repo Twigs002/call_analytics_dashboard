@@ -207,6 +207,7 @@
                 header: true,
                 skipEmptyLines: true,
                 dynamicTyping: true,
+                delimiter: "",
                 complete: function(results) {
                     if (results.errors.length > 0) {
                         showError('Error parsing CSV: ' + results.errors.map(e => e.message).join('; '));
@@ -219,7 +220,7 @@
                         return;
                     }
                     csvData = results.data;
-                    console.log('Raw CSV Data:', csvData);
+                    console.log('CSV Data:', csvData);
                     processData();
                     showLoading(false);
                 },
@@ -269,8 +270,8 @@
             let duplicatesSkipped = 0;
 
             csvData.forEach((row, index) => {
-                const callNotes = row[callNotesColumn]?.toString() || '';
-                if (!callNotes.trim()) {
+                const callNotes = row[callNotesColumn]?.toString();
+                if (!callNotes) {
                     console.warn(`Row ${index + 1}: Empty call notes, skipping.`);
                     return;
                 }
@@ -283,44 +284,43 @@
                 }
 
                 try {
-                    console.log(`Processing Row ${index + 1}:`, callNotes); // Log raw entry
                     const callEntries = callNotes.split(/(?=Dialfire call result:)/i);
                     
                     for (const entry of callEntries) {
-                        console.log(`Entry:`, entry); // Log each split entry
-                        const userMatch = entry.match(/Call user:\s*([^@\$\n]+)(?:@|\$|\n|$)/i);
+                        const userMatch = entry.match(/Call user:\s*([^$\n]+?)(?:\$|Call comment|$)/i);
                         if (!userMatch) {
                             console.warn(`Row ${index + 1}: No valid Call user found in entry: ${entry}`);
                             continue;
                         }
                         
                         let caller = userMatch[1].trim();
-                        console.log(`Extracted Caller: ${caller}`); // Log extracted caller
+                        caller = caller.replace(/@.*$/, '').replace(/\$.*$/, '').trim();
                         if (!caller) {
                             console.warn(`Row ${index + 1}: Invalid caller name after cleaning.`);
                             continue;
                         }
                         
-                        const resultMatch = entry.match(/Dialfire call result:\s*(\w+)/i);
+                        const resultMatch = entry.match(/Dialfire call result:\s*([^\/\$\n]+)/i);
                         if (!resultMatch) {
                             console.warn(`Row ${index + 1}: No valid Dialfire call result found in entry: ${entry}`);
                             continue;
                         }
                         
                         const result = resultMatch[1].trim().toLowerCase();
-                        console.log(`Extracted Result: ${result}`); // Log extracted result
                         
                         let period = 'Current Period';
                         if (dateColumn && row[dateColumn]) {
                             const date = new Date(row[dateColumn]);
                             if (!isNaN(date)) {
                                 period = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-                                console.log(`Assigned Period: ${period} from date ${row[dateColumn]}`); // Log period
                             } else {
                                 console.warn(`Row ${index + 1}: Invalid date format in ${dateColumn}: ${row[dateColumn]}`);
                             }
-                        } else {
-                            console.log(`No date column or value, using Current Period: ${period}`); // Log default period
+                        }
+
+                        if (!caller || !result) {
+                            console.warn(`Row ${index + 1}: Missing caller or result in entry: ${entry}`);
+                            continue;
                         }
 
                         if (!processedData[caller]) {
@@ -336,16 +336,13 @@
                         }
 
                         processedData[caller][period].calls += 1;
-                        console.log(`Incremented calls for ${caller} in ${period}, now: ${processedData[caller][period].calls}`); // Log calls
                         
-                        if (result === 'success') {
+                        if (result.includes('success') || result.includes('answered') || result.includes('connected')) {
                             processedData[caller][period].success += 1;
-                            console.log(`Incremented success for ${caller} in ${period}, now: ${processedData[caller][period].success}`); // Log success
-                        } else if (result === 'declined') {
+                        } else if (result.includes('declined') || result.includes('busy') || result.includes('no answer') || result.includes('failed')) {
                             processedData[caller][period].declines += 1;
-                            console.log(`Incremented declines for ${caller} in ${period}, now: ${processedData[caller][period].declines}`); // Log declines
                         } else {
-                            console.warn(`Row ${index + 1}: Unrecognized result "${result}" for ${caller} in ${entry}`);
+                            processedData[caller][period].declines += 1;
                         }
                         
                         importedHashes.add(rowHash);
@@ -360,7 +357,7 @@
             localStorage.setItem('callAnalyticsData', JSON.stringify(processedData));
             localStorage.setItem('importedHashes', JSON.stringify(Array.from(importedHashes)));
 
-            console.log('Final Processed Data:', processedData);
+            console.log('Processed Data:', processedData);
             console.log(`Total Processed: ${totalProcessed}, Errors: ${errorCount}, Duplicates Skipped: ${duplicatesSkipped}`);
 
             if (Object.keys(processedData).length === 0 || totalProcessed === 0) {
