@@ -527,7 +527,7 @@
 
             Object.entries(monthFilteredData).forEach(([caller, periods]) => {
                 if (Object.keys(periods).length > 0) {
-                    totalCallers++; // Only count callers with data for the selected period
+                    totalCallers++;
                 }
                 Object.entries(periods).forEach(([period, stats]) => {
                     if (!monthTotals[period]) {
@@ -544,47 +544,46 @@
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
-            // Calculate top performer: highest calls, success rate as tiebreaker
-            let topCaller = null;
-            let maxCalls = -1;
-            let maxSuccessRate = -1;
-            Object.entries(monthFilteredData).forEach(([caller, periods]) => {
+            // Calculate top 3 performers: highest calls, success rate as tiebreaker
+            const callerStats = Object.entries(monthFilteredData).map(([caller, periods]) => {
                 let callerCalls = 0, callerSuccess = 0;
                 Object.values(periods).forEach(stats => {
                     callerCalls += stats.calls;
                     callerSuccess += stats.success;
                 });
                 const callerRate = callerCalls > 0 ? (callerSuccess / callerCalls * 100) : 0;
-                if (callerCalls > maxCalls || (callerCalls === maxCalls && callerRate > maxSuccessRate)) {
-                    maxCalls = callerCalls;
-                    maxSuccessRate = callerRate;
-                    topCaller = caller;
-                }
+                return { caller, calls: callerCalls, successRate: callerRate };
             });
 
-            // Update stats grid
-            statsGrid.innerHTML = `
-                <div class="stat-item" ${topCaller ? `onclick="callerFilterSelect.value='${topCaller}'; updateStats(); createCharts();"` : ''}>
-                    <div class="stat-value">${topCaller || 'N/A'}</div>
-                    <div class="stat-label">Top Performer</div>
-                </div>
-                <div class="stat-item">
+            const topPerformers = callerStats
+                .sort((a, b) => b.calls - a.calls || b.successRate - a.successRate)
+                .slice(0, 3);
+
+            // Update stats grid with top 3 performers followed by totals
+            statsGrid.innerHTML = [
+                ...topPerformers.map((performer, index) => `
+                    <div class="stat-item" onclick="callerFilterSelect.value='${performer.caller}'; updateStats(); createCharts();">
+                        <div class="stat-value">${performer.caller}</div>
+                        <div class="stat-label">Top Performer #${index + 1}</div>
+                    </div>
+                `),
+                `<div class="stat-item">
                     <div class="stat-value">${totalCallers}</div>
                     <div class="stat-label">Total Callers</div>
-                </div>
-                <div class="stat-item">
+                </div>`,
+                `<div class="stat-item">
                     <div class="stat-value">${totalCalls.toLocaleString()}</div>
                     <div class="stat-label">Total Calls</div>
-                </div>
-                <div class="stat-item">
+                </div>`,
+                `<div class="stat-item">
                     <div class="stat-value">${totalSuccess.toLocaleString()}</div>
                     <div class="stat-label">Successful</div>
-                </div>
-                <div class="stat-item">
+                </div>`,
+                `<div class="stat-item">
                     <div class="stat-value">${successRate}%</div>
                     <div class="stat-label">Success Rate</div>
-                </div>
-            `;
+                </div>`
+            ].join('');
 
             // Update monthly summary table
             const sortedPeriods = Object.keys(monthTotals).sort((a, b) => {
