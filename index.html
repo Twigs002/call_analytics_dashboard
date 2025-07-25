@@ -558,20 +558,28 @@
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
-            // Calculate top 3 performers: highest calls, success rate as tiebreaker
+            // Calculate top 3 performers: average of normalized calls and success rate
             const topPerformers = [];
             const callerStats = {};
+            let maxCalls = 0;
             Object.entries(monthFilteredData).forEach(([caller, periods]) => {
-                let callerCalls = 0, callerSuccess = 0;
+                let callerCalls = 0, callerSuccess = 0, totalCallsForCaller = 0;
                 Object.values(periods).forEach(stats => {
                     callerCalls += stats.calls;
                     callerSuccess += stats.success;
+                    totalCallsForCaller += stats.calls;
                 });
-                const callerRate = callerCalls > 0 ? (callerSuccess / callerCalls * 100) : 0;
+                maxCalls = Math.max(maxCalls, callerCalls);
+                const callerRate = totalCallsForCaller > 0 ? (callerSuccess / totalCallsForCaller * 100) : 0;
                 callerStats[caller] = { calls: callerCalls, rate: callerRate };
                 topPerformers.push({ caller, calls: callerCalls, rate: callerRate });
             });
-            topPerformers.sort((a, b) => b.calls - a.calls || b.rate - a.rate).slice(0, 3);
+
+            // Normalize calls to 0-100 scale based on maxCalls
+            topPerformers.forEach(perf => {
+                perf.normalizedScore = (perf.calls / (maxCalls > 0 ? maxCalls : 1) * 100 + perf.rate) / 2;
+            });
+            topPerformers.sort((a, b) => b.normalizedScore - a.normalizedScore).slice(0, 3);
 
             // Update stats grid with 7 items
             statsGrid.innerHTML = `
