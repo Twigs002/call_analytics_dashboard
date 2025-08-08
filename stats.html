@@ -250,8 +250,8 @@
             });
             const sortedCallers = Array.from(allCallers).sort();
             const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
-                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
-                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                const dateA = a === 'August 2025' ? new Date(0) : new Date(a);
+                const dateB = b === 'August 2025' ? new Date(0) : new Date(b);
                 return dateA - dateB;
             });
 
@@ -291,7 +291,6 @@
                 filteredData = { [callerFilter]: processedData[callerFilter] || {} };
             }
 
-            // Apply month filter
             let monthFilteredData = {};
             Object.entries(filteredData).forEach(([caller, periods]) => {
                 monthFilteredData[caller] = {};
@@ -316,7 +315,6 @@
                 return;
             }
 
-            // Apply column sorting
             rows.sort((a, b) => {
                 let valueA = a[sortColumn];
                 let valueB = b[sortColumn];
@@ -324,8 +322,8 @@
                     valueA = valueA.toLowerCase();
                     valueB = valueB.toLowerCase();
                 } else if (sortColumn === 'period') {
-                    valueA = a.period === 'Current Period' ? new Date(0) : new Date(a.period);
-                    valueB = b.period === 'Current Period' ? new Date(0) : new Date(b.period);
+                    valueA = a.period === 'August 2025' ? new Date(0) : new Date(a.period);
+                    valueB = b.period === 'August 2025' ? new Date(0) : new Date(b.period);
                 } else {
                     valueA = Number(valueA);
                     valueB = Number(valueB);
