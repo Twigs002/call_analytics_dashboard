@@ -230,10 +230,11 @@
             });
         }
 
-        function generateHash(str) {
+        function generateHash(str, date) {
             let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            const combined = `${str}${date || ''}`;
+            for (let i = 0; i < combined.length; i++) {
+                hash = ((hash << 5) - hash) + combined.charCodeAt(i);
                 hash |= 0;
             }
             return hash.toString();
@@ -246,10 +247,13 @@
             }
 
             let callNotesColumn = null;
+            let activityDateColumn = null;
             for (const header of Object.keys(csvData[0])) {
                 if (header.toLowerCase().trim().includes('call notes')) {
                     callNotesColumn = header;
-                    break;
+                }
+                if (header.toLowerCase().trim().includes('activity date')) {
+                    activityDateColumn = header;
                 }
             }
 
@@ -269,9 +273,10 @@
                     return;
                 }
 
-                const rowHash = generateHash(callNotes);
+                const activityDate = row[activityDateColumn]?.toString() || '';
+                const rowHash = generateHash(callNotes, activityDate);
                 if (importedHashes.has(rowHash)) {
-                    console.log(`Row ${index + 1}: Duplicate detected, skipping.`);
+                    console.log(`Row ${index + 1}: Duplicate detected (same notes and date), skipping.`);
                     duplicatesSkipped++;
                     return;
                 }
@@ -291,7 +296,7 @@
                         processedData[caller] = {};
                     }
 
-                    const period = 'August 2025'; // Fixed period for simplicity, adjust as needed
+                    const period = activityDate.split(' ')[0] || 'Unknown'; // Use date part of "Activity date" (e.g., "2025-07-31")
                     if (!processedData[caller][period]) {
                         processedData[caller][period] = {
                             calls: 0,
