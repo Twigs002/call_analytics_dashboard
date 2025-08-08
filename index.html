@@ -346,7 +346,6 @@
                 </select>
             </label>
             <button id="clearData"><i class="fas fa-trash"></i> Clear Stored Data</button>
-            <button id="toggleReports" style="display: none;"><i class="fas fa-lock"></i> Toggle Reports</button>
         </div>
 
         <div class="stats-summary" id="statsSummary">
@@ -374,7 +373,6 @@
     <script>
         let processedData = JSON.parse(localStorage.getItem('callAnalyticsData')) || {};
         let charts = {};
-        let reportsEnabled = true; // Placeholder for report visibility
 
         const viewReportsButton = document.getElementById('viewReports');
         const errorDiv = document.getElementById('errorMessage');
@@ -386,7 +384,6 @@
         const startMonthSelect = document.getElementById('startMonth');
         const endMonthSelect = document.getElementById('endMonth');
         const callerFilterSelect = document.getElementById('callerFilter');
-        const toggleReportsButton = document.getElementById('toggleReports');
 
         viewReportsButton.addEventListener('click', showReports);
         clearDataButton.addEventListener('click', clearStoredData);
@@ -396,21 +393,10 @@
         startMonthSelect.addEventListener('change', createCharts);
         endMonthSelect.addEventListener('change', createCharts);
         callerFilterSelect.addEventListener('change', () => { updateStats(); createCharts(); });
-        toggleReportsButton.addEventListener('click', toggleReports);
-
-        // Check for admin mode via query parameter (placeholder)
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('admin') === 'true') {
-            toggleReportsButton.style.display = 'block';
-        }
 
         function showReports() {
             if (Object.keys(processedData).length === 0) {
                 showError('No data available. Please visit the Import page to upload a CSV file.');
-                return;
-            }
-            if (!reportsEnabled) {
-                showError('Reports are disabled for this user.');
                 return;
             }
 
@@ -420,20 +406,6 @@
             updateFilters();
             updateStats();
             createCharts();
-        }
-
-        function toggleReports() {
-            reportsEnabled = !reportsEnabled;
-            if (!reportsEnabled) {
-                document.getElementById('filters').style.display = 'none';
-                document.getElementById('statsSummary').style.display = 'none';
-                document.getElementById('chartsContainer').innerHTML = '';
-                Object.values(charts).forEach(chart => chart.destroy());
-                charts = {};
-                showError('Reports disabled.');
-            } else {
-                showReports();
-            }
         }
 
         function clearStoredData() {
@@ -466,8 +438,8 @@
                 Object.keys(periods).forEach(period => allPeriods.add(period));
             });
             const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
-                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
-                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                const dateA = a === 'August 2025' ? new Date(0) : new Date(a);
+                const dateB = b === 'August 2025' ? new Date(0) : new Date(b);
                 return dateA - dateB;
             });
             const sortedCallers = Array.from(allCallers).sort();
@@ -500,13 +472,11 @@
             const callerFilter = callerFilterSelect.value;
             const selectedMonth = monthFilterSelect.value;
 
-            // Apply caller filter
             let filteredData = processedData;
             if (callerFilter !== 'all') {
                 filteredData = { [callerFilter]: processedData[callerFilter] || {} };
             }
 
-            // Apply month filter
             let monthFilteredData = {};
             Object.entries(filteredData).forEach(([caller, periods]) => {
                 monthFilteredData[caller] = {};
@@ -517,7 +487,6 @@
                 }
             });
 
-            // If no data after filtering, show placeholder
             if (Object.keys(monthFilteredData).length === 0 || 
                 Object.values(monthFilteredData).every(periods => Object.keys(periods).length === 0)) {
                 statsGrid.innerHTML = `
@@ -534,14 +503,13 @@
                 return;
             }
 
-            // Calculate stats for filtered data
             let totalCallers = 0;
             let totalCalls = 0, totalSuccess = 0, totalDeclines = 0;
             const monthTotals = {};
 
             Object.entries(monthFilteredData).forEach(([caller, periods]) => {
                 if (Object.keys(periods).length > 0) {
-                    totalCallers++; // Only count callers with data for the selected period
+                    totalCallers++;
                 }
                 Object.entries(periods).forEach(([period, stats]) => {
                     if (!monthTotals[period]) {
@@ -558,7 +526,6 @@
 
             const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
 
-            // Calculate top 3 performers: average of normalized calls and success rate
             const topPerformers = [];
             const callerStats = {};
             let maxCalls = 0;
@@ -575,13 +542,11 @@
                 topPerformers.push({ caller, calls: callerCalls, rate: callerRate });
             });
 
-            // Normalize calls to 0-100 scale based on maxCalls
             topPerformers.forEach(perf => {
                 perf.normalizedScore = (perf.calls / (maxCalls > 0 ? maxCalls : 1) * 100 + perf.rate) / 2;
             });
             topPerformers.sort((a, b) => b.normalizedScore - a.normalizedScore).slice(0, 3);
 
-            // Update stats grid with 7 items
             statsGrid.innerHTML = `
                 <div class="stat-item" ${topPerformers[0] ? `onclick="callerFilterSelect.value='${topPerformers[0].caller}'; updateStats(); createCharts();"` : ''}>
                     <div class="stat-value">${topPerformers[0] ? topPerformers[0].caller : 'N/A'}</div>
@@ -613,10 +578,9 @@
                 </div>
             `;
 
-            // Update monthly summary table
             const sortedPeriods = Object.keys(monthTotals).sort((a, b) => {
-                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
-                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                const dateA = a === 'August 2025' ? new Date(0) : new Date(a);
+                const dateB = b === 'August 2025' ? new Date(0) : new Date(b);
                 return dateA - dateB;
             });
 
@@ -638,11 +602,6 @@
         }
 
         function createCharts() {
-            if (!reportsEnabled) {
-                showError('Reports are disabled for this user.');
-                return;
-            }
-
             const container = document.getElementById('chartsContainer');
             const viewType = viewTypeSelect.value;
             const metricType = metricTypeSelect.value;
@@ -660,8 +619,8 @@
                 Object.keys(periods).forEach(period => allPeriods.add(period));
             });
             let filteredPeriods = Array.from(allPeriods).sort((a, b) => {
-                const dateA = a === 'Current Period' ? new Date(0) : new Date(a);
-                const dateB = b === 'Current Period' ? new Date(0) : new Date(b);
+                const dateA = a === 'August 2025' ? new Date(0) : new Date(a);
+                const dateB = b === 'August 2025' ? new Date(0) : new Date(b);
                 return dateA - dateB;
             });
 
@@ -671,7 +630,7 @@
                 const startDate = startMonth === 'all' ? new Date(0) : new Date(startMonth);
                 const endDate = endMonth === 'all' ? new Date('9999-12-31') : new Date(endMonth);
                 filteredPeriods = filteredPeriods.filter(period => {
-                    const periodDate = period === 'Current Period' ? new Date(0) : new Date(period);
+                    const periodDate = period === 'August 2025' ? new Date(0) : new Date(period);
                     return periodDate >= startDate && periodDate <= endDate;
                 });
             }
