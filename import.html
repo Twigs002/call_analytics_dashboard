@@ -149,7 +149,7 @@
 
         <div class="upload-section" id="uploadSection" onclick="document.getElementById('fileInput').click()">
             <div class="upload-text">📂 Click to upload CSV file or drag & drop</div>
-            <div class="upload-hint">Expected format: CSV with "Call notes" and "Activity date" (YYYY-MM-DD HH:MM). New data will be merged, duplicates skipped.</div>
+            <div class="upload-hint">Expected format: CSV with "Call notes" containing 'Dialfire call result: {{success/declined}}/$noneCall user: {{CallerName}}@clienthubCall comment: na'.</div>
             <input type="file" id="fileInput" accept=".csv" />
         </div>
 
@@ -220,7 +220,6 @@
                         return;
                     }
                     csvData = results.data;
-                    console.log('CSV Data:', csvData);
                     processData();
                     showLoading(false);
                 },
@@ -246,22 +245,16 @@
                 return;
             }
 
-            const headers = Object.keys(csvData[0]);
             let callNotesColumn = null;
-            let dateColumn = null;
-            
-            for (const header of headers) {
-                const lowerHeader = header.toLowerCase().trim();
-                if (lowerHeader.includes('call notes') || lowerHeader.includes('notes') || lowerHeader.includes('call')) {
+            for (const header of Object.keys(csvData[0])) {
+                if (header.toLowerCase().trim().includes('call notes')) {
                     callNotesColumn = header;
-                }
-                if (lowerHeader.includes('activity date') || lowerHeader.includes('date') || lowerHeader.includes('call date')) {
-                    dateColumn = header;
+                    break;
                 }
             }
 
             if (!callNotesColumn) {
-                showError('Could not find call notes column. Please ensure your CSV has a column containing call information.');
+                showError('Could not find call notes column.');
                 return;
             }
 
@@ -270,13 +263,13 @@
             let duplicatesSkipped = 0;
 
             csvData.forEach((row, index) => {
-                const callNotes = row[callNotesColumn]?.toString();
+                const callNotes = row[callNotesColumn]?.toString() || '';
                 if (!callNotes) {
                     console.warn(`Row ${index + 1}: Empty call notes, skipping.`);
                     return;
                 }
 
-                const rowHash = generateHash(`${row[dateColumn] || ''}|${callNotes}`);
+                const rowHash = generateHash(callNotes);
                 if (importedHashes.has(rowHash)) {
                     console.log(`Row ${index + 1}: Duplicate detected, skipping.`);
                     duplicatesSkipped++;
@@ -284,74 +277,38 @@
                 }
 
                 try {
-                    const callEntries = callNotes.split(/(?=Dialfire call result:)/i);
-                    
-                    for (const entry of callEntries) {
-                        const userMatch = entry.match(/Call user:\s*([^$\n]+?)(?:\$|Call comment|$)/i);
-                        if (!userMatch) {
-                            console.warn(`Row ${index + 1}: No valid Call user found in entry: ${entry}`);
-                            continue;
-                        }
-                        
-                        let caller = userMatch[1].trim();
-                        caller = caller.replace(/@.*$/, '').replace(/\$.*$/, '').trim();
-                        if (!caller) {
-                            console.warn(`Row ${index + 1}: Invalid caller name after cleaning.`);
-                            continue;
-                        }
-                        
-                        const resultMatch = entry.match(/Dialfire call result:\s*([^\/\$\n]+)/i);
-                        if (!resultMatch) {
-                            console.warn(`Row ${index + 1}: No valid Dialfire call result found in entry: ${entry}`);
-                            continue;
-                        }
-                        
-                        const result = resultMatch[1].trim().toLowerCase();
-                        
-                        // Only count specific format: "Dialfire call result: success/$none Call user: ..."
-                        if (!entry.match(/Dialfire call result:\s*success\/\$none\s*Call user:/i)) {
-                            console.warn(`Row ${index + 1}: Entry does not match required success format: ${entry}`);
-                            continue;
-                        }
-
-                        let period = 'Current Period';
-                        if (dateColumn && row[dateColumn]) {
-                            const date = new Date(row[dateColumn]);
-                            if (!isNaN(date)) {
-                                period = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-                            } else {
-                                console.warn(`Row ${index + 1}: Invalid date format in ${dateColumn}: ${row[dateColumn]}`);
-                            }
-                        }
-
-                        if (!caller) {
-                            console.warn(`Row ${index + 1}: Missing caller in entry: ${entry}`);
-                            continue;
-                        }
-
-                        if (!processedData[caller]) {
-                            processedData[caller] = {};
-                        }
-
-                        if (!processedData[caller][period]) {
-                            processedData[caller][period] = {
-                                calls: 0,
-                                success: 0,
-                                declines: 0
-                            };
-                        }
-
-                        processedData[caller][period].calls += 1;
-                        
-                        if (result === 'success/$none') {
-                            processedData[caller][period].success += 1;
-                        } else {
-                            processedData[caller][period].declines += 1;
-                        }
-                        
-                        importedHashes.add(rowHash);
-                        totalProcessed++;
+                    const callerMatch = callNotes.match(/Call user:\s*([^@]+)@clienthub/i);
+                    if (!callerMatch) {
+                        console.warn(`Row ${index + 1}: No valid Call user found in ${callNotes}`);
+                        return;
                     }
+                    const caller = callerMatch[1].trim();
+
+                    const resultMatch = callNotes.match(/Dialfire call result:\s*(success|declined)\/\$none/i);
+                    const result = resultMatch ? resultMatch[1].toLowerCase() : null;
+
+                    if (!processedData[caller]) {
+                        processedData[caller] = {};
+                    }
+
+                    const period = 'August 2025'; // Fixed period for simplicity, adjust as needed
+                    if (!processedData[caller][period]) {
+                        processedData[caller][period] = {
+                            calls: 0,
+                            success: 0,
+                            declines: 0
+                        };
+                    }
+
+                    processedData[caller][period].calls += 1;
+                    if (result === 'success') {
+                        processedData[caller][period].success += 1;
+                    } else if (result === 'declined') {
+                        processedData[caller][period].declines += 1;
+                    }
+
+                    importedHashes.add(rowHash);
+                    totalProcessed++;
                 } catch (error) {
                     errorCount++;
                     console.warn(`Error processing row ${index + 1}:`, error);
