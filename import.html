@@ -6,6 +6,7 @@
     <title>Import Call Data - Quay 1</title>
     <link href="https://fonts.googleapis.com/css2?family=Gotham:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -75,20 +76,14 @@
             margin: 0 auto 20px;
         }
 
-        input[type="text"] {
-            padding: 10px 15px;
+        input[type="file"] {
+            padding: 10px;
             border: 2px solid #98C5ED;
             border-radius: 10px;
             font-size: 1rem;
             background: white;
             color: #3D5BA6;
             font-family: 'Gotham', sans-serif;
-        }
-
-        input[type="text"]:focus {
-            outline: none;
-            border-color: #FDC503;
-            box-shadow: 0 0 0 3px rgba(253, 197, 3, 0.2);
         }
 
         button {
@@ -156,12 +151,11 @@
         </div>
 
         <div class="error" id="errorMessage"></div>
-        <div class="loading" id="loading"><i class="fas fa-spinner fa-spin"></i> Fetching from Dialfire...</div>
+        <div class="loading" id="loading"><i class="fas fa-spinner fa-spin"></i> Processing CSV...</div>
 
         <div class="input-container">
-            <input type="text" id="campaignIdInput" placeholder="Campaign ID (e.g., N4UMU8GPQKZMRM93)">
-            <input type="text" id="campaignTokenInput" placeholder="Campaign Token">
-            <button id="fetchButton"><i class="fas fa-upload"></i> Fetch Data</button>
+            <input type="file" id="csvInput" accept=".csv">
+            <button id="importButton"><i class="fas fa-upload"></i> Import CSV</button>
         </div>
     </div>
 
@@ -171,67 +165,36 @@
 
         const errorDiv = document.getElementById('errorMessage');
         const loading = document.getElementById('loading');
-        const fetchButton = document.getElementById('fetchButton');
-        const campaignIdInput = document.getElementById('campaignIdInput');
-        const campaignTokenInput = document.getElementById('campaignTokenInput');
+        const csvInput = document.getElementById('csvInput');
+        const importButton = document.getElementById('importButton');
 
-        fetchButton.addEventListener('click', fetchDialfireData);
-
-        async function fetchDialfireData() {
-            const campaignId = campaignIdInput.value.trim();
-            const token = campaignTokenInput.value.trim();
-
-            if (!campaignId || !token) {
-                showError('Please enter campaign ID and token.');
+        importButton.addEventListener('click', () => {
+            if (csvInput.files.length === 0) {
+                showError('Please select a CSV file.');
                 return;
             }
+            const file = csvInput.files[0];
+            parseCSV(file);
+        });
 
+        function parseCSV(file) {
             showLoading(true);
             hideError();
 
-            try {
-                // Update with your tenant-specific URL if needed
-                const baseUrl = 'https://app.dialfire.com'; // Try 'https://3f88c548.app.dialfire.com' if 403 persists
-                let allData = [];
-                let page = 1;
-                let hasMore = true;
-
-                while (hasMore) {
-                    const url = `${baseUrl}/api/campaigns/${campaignId}/connections?page=${page}&per_page=100&since=2025-10-01`;
-                    console.log('Fetching from:', url);
-                    const response = await fetch(url, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`API error ${response.status}: ${errorText}`);
-                    }
-
-                    const data = await response.json();
-                    const items = data.items || data;
-                    console.log('Page', page, 'data:', items);
-                    allData = allData.concat(items);
-                    hasMore = items.length === 100;
-                    page++;
-                    if (page > 10) {
-                        console.warn('Stopped at page 10 to avoid excessive requests.');
-                        break;
-                    }
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    console.log('Parsed CSV:', results.data);
+                    processData(results.data);
+                    showLoading(false);
+                },
+                error: function(error) {
+                    console.error('CSV parse error:', error);
+                    showError('Failed to parse CSV: ' + error.message);
+                    showLoading(false);
                 }
-
-                console.log('Fetched connections:', allData);
-                processData(allData);
-            } catch (error) {
-                console.error('Fetch error:', error);
-                showError(`Failed to fetch: ${error.message}. Check campaign ID, token, or tenant URL.`);
-            } finally {
-                showLoading(false);
-            }
+            });
         }
 
         function generateHash(str, date) {
@@ -244,9 +207,9 @@
             return hash.toString();
         }
 
-        function processData(apiData) {
-            if (!apiData || !Array.isArray(apiData) || apiData.length === 0) {
-                showError('No valid connections found. Check campaign ID, date range, or API response.');
+        function processData(csvData) {
+            if (!csvData || csvData.length === 0) {
+                showError('No valid data found in CSV.');
                 return;
             }
 
@@ -254,57 +217,39 @@
             let errorCount = 0;
             let duplicatesSkipped = 0;
 
-            // Configurable mappings for success/decline to match your CSV
-            const successStatuses = ['success', 'sale_made', 'appointment_set', 'connected', 'completed']; // Add your CSV's success values
-            const declineStatuses = ['declined', 'refused', 'no_interest', 'busy', 'no_answer']; // Add your CSV's decline values
+            // Mapping based on assumed CSV values (update with screenshot confirmation)
+            const successStatuses = ['Success', 'success', 'sale_made', 'appointment_set', 'completed'];
+            const declineStatuses = ['Decline', 'declined', 'no_interest', 'refused', 'busy'];
 
-            apiData.forEach((row, index) => {
+            csvData.forEach((row, index) => {
                 try {
-                    let callNotes = (row.comment || row.agent_notes || row.status_detail || '').toString();
-                    if (row.status_detail && !callNotes.includes(row.status_detail)) {
-                        callNotes += ` Dialfire call result: ${row.status_detail}/$none`;
-                    }
-                    const activityDate = row.created_at || row.connected_at || row.updated_at;
-                    const activityDateStr = activityDate ? new Date(activityDate).toISOString().split('T')[0] : 'Unknown';
+                    // Adjust column names based on your CSV (confirm with screenshot)
+                    const caller = (row['Caller'] || row['Agent'] || '').trim();
+                    const result = (row['Result'] || row['Status'] || '').toLowerCase().trim();
+                    const dateStr = row['Date'] || row['Created At'] || '';
+                    const notes = (row['Notes'] || row['Comment'] || result || '').toString();
 
-                    if (!callNotes) {
-                        console.warn(`Row ${index + 1}: Empty notes, skipping.`, row);
+                    if (!caller || !result) {
+                        console.warn(`Row ${index + 1}: Missing caller or result, skipping.`, row);
                         return;
                     }
 
-                    const rowHash = generateHash(callNotes, activityDateStr);
+                    const activityDate = new Date(dateStr);
+                    const activityDateStr = !isNaN(activityDate) ? activityDate.toISOString().split('T')[0] : 'Unknown';
+                    const rowHash = generateHash(notes, activityDateStr);
                     if (importedHashes.has(rowHash)) {
                         console.log(`Row ${index + 1}: Duplicate, skipping.`);
                         duplicatesSkipped++;
                         return;
                     }
 
-                    let caller = '';
-                    const callerMatch = callNotes.match(/Call user:\s*([^@]+)@clienthub/i);
-                    if (callerMatch) {
-                        caller = callerMatch[1].trim();
-                    } else if (row.agent_name || row.user_name) {
-                        caller = (row.agent_name || row.user_name || 'Unknown').trim();
-                        console.log(`Row ${index + 1}: Fallback caller: ${caller}`);
+                    let callResult = null;
+                    if (successStatuses.some(s => result.includes(s))) {
+                        callResult = 'success';
+                    } else if (declineStatuses.some(s => result.includes(s))) {
+                        callResult = 'declined';
                     } else {
-                        console.warn(`Row ${index + 1}: No caller found in ${callNotes}`, row);
-                        return;
-                    }
-
-                    const statusDetail = (row.status_detail || '').toLowerCase();
-                    let result = null;
-                    if (successStatuses.some(s => statusDetail.includes(s))) {
-                        result = 'success';
-                    } else if (declineStatuses.some(s => statusDetail.includes(s))) {
-                        result = 'declined';
-                    }
-                    const notesMatch = callNotes.match(/Dialfire call result:\s*(success|declined)\/\$none/i);
-                    if (notesMatch && !result) {
-                        result = notesMatch[1].toLowerCase();
-                    }
-
-                    if (!result) {
-                        console.warn(`Row ${index + 1}: No valid status in ${statusDetail}, skipping.`, row);
+                        console.warn(`Row ${index + 1}: Invalid result '${result}', skipping.`, row);
                         return;
                     }
 
@@ -322,9 +267,9 @@
                     }
 
                     processedData[caller][period].calls += 1;
-                    if (result === 'success') {
+                    if (callResult === 'success') {
                         processedData[caller][period].success += 1;
-                    } else if (result === 'declined') {
+                    } else if (callResult === 'declined') {
                         processedData[caller][period].declines += 1;
                     }
 
