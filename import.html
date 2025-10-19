@@ -190,13 +190,15 @@
             hideError();
 
             try {
-                const baseUrl = 'https://app.dialfire.com';
+                // Update with your tenant-specific URL if needed
+                const baseUrl = 'https://app.dialfire.com'; // Try 'https://3f88c548.app.dialfire.com' if 403 persists
                 let allData = [];
                 let page = 1;
                 let hasMore = true;
 
                 while (hasMore) {
                     const url = `${baseUrl}/api/campaigns/${campaignId}/connections?page=${page}&per_page=100&since=2025-10-01`;
+                    console.log('Fetching from:', url);
                     const response = await fetch(url, {
                         method: 'GET',
                         headers: {
@@ -212,18 +214,22 @@
 
                     const data = await response.json();
                     const items = data.items || data;
+                    console.log('Page', page, 'data:', items);
                     allData = allData.concat(items);
                     hasMore = items.length === 100;
                     page++;
-                    if (page > 10) break; // Safety limit
+                    if (page > 10) {
+                        console.warn('Stopped at page 10 to avoid excessive requests.');
+                        break;
+                    }
                 }
 
                 console.log('Fetched connections:', allData);
                 processData(allData);
-                showLoading(false);
             } catch (error) {
                 console.error('Fetch error:', error);
-                showError(`Failed to fetch: ${error.message}. Check ID/token.`);
+                showError(`Failed to fetch: ${error.message}. Check campaign ID, token, or tenant URL.`);
+            } finally {
                 showLoading(false);
             }
         }
@@ -239,8 +245,8 @@
         }
 
         function processData(apiData) {
-            if (!apiData || apiData.length === 0) {
-                showError('No connections found. Check campaign ID or date range.');
+            if (!apiData || !Array.isArray(apiData) || apiData.length === 0) {
+                showError('No valid connections found. Check campaign ID, date range, or API response.');
                 return;
             }
 
@@ -248,44 +254,48 @@
             let errorCount = 0;
             let duplicatesSkipped = 0;
 
+            // Configurable mappings for success/decline to match your CSV
+            const successStatuses = ['success', 'sale_made', 'appointment_set', 'connected', 'completed']; // Add your CSV's success values
+            const declineStatuses = ['declined', 'refused', 'no_interest', 'busy', 'no_answer']; // Add your CSV's decline values
+
             apiData.forEach((row, index) => {
-                let callNotes = (row.comment || row.agent_notes || row.status_detail || '').toString();
-                if (row.status_detail && !callNotes.includes(row.status_detail)) {
-                    callNotes += ` Dialfire call result: ${row.status_detail}/$none`;
-                }
-                const activityDate = row.created_at || row.connected_at || row.updated_at;
-                const activityDateStr = activityDate ? new Date(activityDate).toISOString().split('T')[0] : '';
-
-                if (!callNotes) {
-                    console.warn(`Row ${index + 1}: Empty notes, skipping.`);
-                    return;
-                }
-
-                const rowHash = generateHash(callNotes, activityDateStr);
-                if (importedHashes.has(rowHash)) {
-                    console.log(`Row ${index + 1}: Duplicate, skipping.`);
-                    duplicatesSkipped++;
-                    return;
-                }
-
                 try {
+                    let callNotes = (row.comment || row.agent_notes || row.status_detail || '').toString();
+                    if (row.status_detail && !callNotes.includes(row.status_detail)) {
+                        callNotes += ` Dialfire call result: ${row.status_detail}/$none`;
+                    }
+                    const activityDate = row.created_at || row.connected_at || row.updated_at;
+                    const activityDateStr = activityDate ? new Date(activityDate).toISOString().split('T')[0] : 'Unknown';
+
+                    if (!callNotes) {
+                        console.warn(`Row ${index + 1}: Empty notes, skipping.`, row);
+                        return;
+                    }
+
+                    const rowHash = generateHash(callNotes, activityDateStr);
+                    if (importedHashes.has(rowHash)) {
+                        console.log(`Row ${index + 1}: Duplicate, skipping.`);
+                        duplicatesSkipped++;
+                        return;
+                    }
+
                     let caller = '';
                     const callerMatch = callNotes.match(/Call user:\s*([^@]+)@clienthub/i);
                     if (callerMatch) {
                         caller = callerMatch[1].trim();
                     } else if (row.agent_name || row.user_name) {
-                        caller = (row.agent_name || row.user_name).trim();
+                        caller = (row.agent_name || row.user_name || 'Unknown').trim();
                         console.log(`Row ${index + 1}: Fallback caller: ${caller}`);
                     } else {
-                        console.warn(`Row ${index + 1}: No caller in ${callNotes}`);
+                        console.warn(`Row ${index + 1}: No caller found in ${callNotes}`, row);
                         return;
                     }
 
                     const statusDetail = (row.status_detail || '').toLowerCase();
                     let result = null;
-                    if (['success', 'connected', 'completed', 'sale_made', 'appointment_set'].some(s => statusDetail.includes(s))) {
+                    if (successStatuses.some(s => statusDetail.includes(s))) {
                         result = 'success';
-                    } else if (['declined', 'refused', 'no_interest', 'busy', 'no_answer'].some(s => statusDetail.includes(s))) {
+                    } else if (declineStatuses.some(s => statusDetail.includes(s))) {
                         result = 'declined';
                     }
                     const notesMatch = callNotes.match(/Dialfire call result:\s*(success|declined)\/\$none/i);
@@ -293,11 +303,16 @@
                         result = notesMatch[1].toLowerCase();
                     }
 
+                    if (!result) {
+                        console.warn(`Row ${index + 1}: No valid status in ${statusDetail}, skipping.`, row);
+                        return;
+                    }
+
                     if (!processedData[caller]) {
                         processedData[caller] = {};
                     }
 
-                    const period = activityDateStr || 'Unknown';
+                    const period = activityDateStr;
                     if (!processedData[caller][period]) {
                         processedData[caller][period] = {
                             calls: 0,
@@ -317,7 +332,7 @@
                     totalProcessed++;
                 } catch (error) {
                     errorCount++;
-                    console.warn(`Error processing row ${index + 1}:`, error);
+                    console.error(`Error processing row ${index + 1}:`, error, row);
                 }
             });
 
@@ -327,10 +342,11 @@
             console.log('Processed:', { totalProcessed, errorCount, duplicatesSkipped, sampleData: processedData });
 
             if (totalProcessed === 0) {
-                showError(`No new data. Errors: ${errorCount}, Duplicates: ${duplicatesSkipped}. Check console.`);
+                showError(`No new data processed. Errors: ${errorCount}, Duplicates: ${duplicatesSkipped}. Check console for details.`);
                 return;
             }
 
+            showError(`Successfully processed ${totalProcessed} records. Errors: ${errorCount}, Duplicates: ${duplicatesSkipped}.`);
             window.location.href = 'index.html';
         }
 
