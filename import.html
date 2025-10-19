@@ -209,7 +209,7 @@
 
         function processData(csvData) {
             if (!csvData || csvData.length === 0) {
-                showError('No valid data found in CSV.');
+                showError('No valid data found in CSV. Ensure it has headers and rows.');
                 return;
             }
 
@@ -217,24 +217,31 @@
             let errorCount = 0;
             let duplicatesSkipped = 0;
 
-            // Mapping based on assumed CSV values (update with screenshot confirmation)
-            const successStatuses = ['Success', 'success', 'sale_made', 'appointment_set', 'completed'];
-            const declineStatuses = ['Decline', 'declined', 'no_interest', 'refused', 'busy'];
+            // Flexible column name mapping
+            const callerFields = ['Caller', 'Agent', 'Agent Name'];
+            const resultFields = ['Result', 'Status', 'Call Outcome'];
+            const dateFields = ['Date', 'Created At', 'Call Date'];
+            const notesFields = ['Notes', 'Comment'];
+
+            // Mapping based on assumed values (adjust with console feedback)
+            const successStatuses = ['Success', 'success', 'sale_made', 'appointment_set', 'completed', 's', 'yes'];
+            const declineStatuses = ['Decline', 'declined', 'no_interest', 'refused', 'busy', 'd', 'no'];
 
             csvData.forEach((row, index) => {
                 try {
-                    // Adjust column names based on your CSV (confirm with screenshot)
-                    const caller = (row['Caller'] || row['Agent'] || '').trim();
-                    const result = (row['Result'] || row['Status'] || '').toLowerCase().trim();
-                    const dateStr = row['Date'] || row['Created At'] || '';
-                    const notes = (row['Notes'] || row['Comment'] || result || '').toString();
+                    // Find first non-empty value from possible column names
+                    const caller = callerFields.map(f => row[f]).find(v => v && v.trim()) || '';
+                    const result = resultFields.map(f => row[f]).find(v => v && v.trim()) || '';
+                    const dateStr = dateFields.map(f => row[f]).find(v => v && v.trim()) || '';
+                    const notes = notesFields.map(f => row[f]).find(v => v && v.trim()) || result;
 
                     if (!caller || !result) {
-                        console.warn(`Row ${index + 1}: Missing caller or result, skipping.`, row);
+                        console.warn(`Row ${index + 1}: Missing caller or result, skipping. Data:`, row);
                         return;
                     }
 
-                    const activityDate = new Date(dateStr);
+                    // More permissive date parsing
+                    const activityDate = new Date(dateStr.replace(/(\d+)\/(\d+)\/(\d+)/, '$2/$1/$3')); // Handles MM/DD/YYYY
                     const activityDateStr = !isNaN(activityDate) ? activityDate.toISOString().split('T')[0] : 'Unknown';
                     const rowHash = generateHash(notes, activityDateStr);
                     if (importedHashes.has(rowHash)) {
@@ -244,9 +251,9 @@
                     }
 
                     let callResult = null;
-                    if (successStatuses.some(s => result.includes(s))) {
+                    if (successStatuses.some(s => result.toLowerCase().includes(s))) {
                         callResult = 'success';
-                    } else if (declineStatuses.some(s => result.includes(s))) {
+                    } else if (declineStatuses.some(s => result.toLowerCase().includes(s))) {
                         callResult = 'declined';
                     } else {
                         console.warn(`Row ${index + 1}: Invalid result '${result}', skipping.`, row);
@@ -287,7 +294,7 @@
             console.log('Processed:', { totalProcessed, errorCount, duplicatesSkipped, sampleData: processedData });
 
             if (totalProcessed === 0) {
-                showError(`No new data processed. Errors: ${errorCount}, Duplicates: ${duplicatesSkipped}. Check console for details.`);
+                showError(`No new data processed. Errors: ${errorCount}, Duplicates: ${duplicatesSkipped}. Check console for details. Possible issues: unmatched column names (e.g., 'Caller', 'Result', 'Date') or invalid result values. Please share console logs or a sample row.`);
                 return;
             }
 
