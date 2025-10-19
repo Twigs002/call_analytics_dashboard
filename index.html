@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Quay 1</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <title>Call Analytics Dashboard - Quay 1</title>
+    <link href="https://fonts.googleapis.com/css2?family=Gotham:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -16,19 +16,21 @@
         }
 
         body {
-            font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #3d5BA6 0%, #98c5ed 100%);
+            font-family: 'Gotham', 'Helvetica Neue', Arial, sans-serif;
+            font-weight: 400;
+            background: linear-gradient(135deg, #3D5BA6 0%, #98C5ED 100%);
             min-height: 100vh;
             padding: 20px;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(61, 91, 166, 0.2);
+            box-shadow: 0 20px 40px rgba(61, 91, 166, 0.2);
+            backdrop-filter: blur(10px);
         }
 
         .header {
@@ -37,25 +39,26 @@
         }
 
         .header h1 {
-            font-size: 2.5rem;
-            color: #3d5BA6;
+            font-family: 'Gotham', sans-serif;
             font-weight: 700;
-            margin-bottom: 10px;
+            font-size: 2.5rem;
+            color: #3D5BA6;
+            text-shadow: 2px 2px 4px rgba(61, 91, 166, 0.3);
         }
 
         .nav-bar {
             display: flex;
+            gap: 20px;
             justify-content: center;
-            gap: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .nav-bar a {
             padding: 10px 20px;
-            border: 2px solid #98c5ed;
+            border: 2px solid #98C5ED;
             border-radius: 10px;
             background: white;
-            color: #3d5BA6;
+            color: #3D5BA6;
             text-decoration: none;
             font-weight: 500;
             transition: all 0.3s ease;
@@ -68,63 +71,184 @@
 
         .filters {
             display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: 15px;
+            margin-bottom: 30px;
             flex-wrap: wrap;
+            align-items: center;
         }
 
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .filter-group label {
-            font-size: 0.9rem;
-            color: #7f8c8d;
-            margin-bottom: 5px;
-        }
-
-        .filter-group input, .filter-group select {
-            padding: 8px;
-            border: 1px solid #98c5ed;
-            border-radius: 5px;
-            font-size: 1rem;
-        }
-
-        .stats-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .stats-card h2 {
-            font-size: 1.5rem;
-            color: #3d5BA6;
-            margin-bottom: 10px;
+        .filters label {
             font-weight: 500;
+            color: #3D5BA6;
         }
 
-        .stats-card p {
-            font-size: 1.2rem;
-            color: #333;
+        select {
+            padding: 10px 15px;
+            border: 2px solid #98C5ED;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: white;
+            color: #3D5BA6;
+            cursor: pointer;
+            transition: all 0.3s ease;
             font-weight: 400;
         }
 
+        select:focus {
+            outline: none;
+            border-color: #FDC503;
+            box-shadow: 0 0 0 3px rgba(253, 197, 3, 0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-item {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(61, 91, 166, 0.1);
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #3D5BA6;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #98C5ED;
+        }
+
+        .month-summary {
+            margin-top: 30px;
+        }
+
+        .month-summary h3 {
+            color: #3D5BA6;
+            margin-bottom: 10px;
+            font-family: 'Gotham', sans-serif;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(61, 91, 166, 0.1);
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #98C5ED;
+        }
+
+        th {
+            background: #3D5BA6;
+            color: white;
+            font-family: 'Gotham', sans-serif;
+        }
+
+        td {
+            color: #3D5BA6;
+            font-family: 'Gotham', sans-serif;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(61, 91, 166, 0.1);
+        }
+
+        .chart-title {
+            font-family: 'Gotham', sans-serif;
+            font-weight: 500;
+            color: #3D5BA6;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+
+        .download-btn {
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: 2px solid #98C5ED;
+            border-radius: 10px;
+            background: white;
+            color: #3D5BA6;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .download-btn:hover {
+            background: #FDC503;
+            color: white;
+        }
+
+        .error {
+            background: rgba(210, 10, 3, 0.1);
+            color: #D20A03;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            border: 2px solid rgba(210, 10, 3, 0.3);
+            font-weight: 500;
+        }
+
         @media (max-width: 768px) {
-            .container {
-                padding: 15px;
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
             }
+            
             .header h1 {
                 font-size: 2rem;
             }
+            
             .nav-bar {
                 flex-direction: column;
-                align-items: center;
+                gap: 10px;
             }
-            .filters {
-                flex-direction: column;
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-wrapper {
+                height: 200px;
             }
         }
     </style>
@@ -132,7 +256,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 Dashboard</h1>
+            <h1>Quay 1 International Realty</h1>
         </div>
         
         <div class="nav-bar">
@@ -141,82 +265,843 @@
             <a href="import.html">Import Data</a>
         </div>
 
-        <div class="filters">
-            <div class="filter-group">
-                <label for="monthRange">Month Range (from Activity Date)</label>
-                <select id="monthRange">
-                    <option value="all">All Months</option>
-                    <!-- Populate dynamically with JavaScript -->
+        <button id="viewReports" style="display: none;"><i class="fas fa-chart-bar"></i> View Reports</button>
+        <div class="error" id="errorMessage"></div>
+
+        <div class="filters" id="filters" style="display: none;">
+            <label>
+                <strong>View Type:</strong>
+                <select id="viewType">
+                    <option value="individual">Individual Performance</option>
+                    <option value="comparison">Caller Comparison</option>
+                    <option value="trend">Monthly Trend</option>
+                    <option value="stacked">Call Outcomes</option>
                 </select>
-            </div>
-            <div class="filter-group">
-                <label for="customRange">Custom Date Range</label>
-                <input type="text" id="customRange" placeholder="Select range (e.g., 1 Jan - 6 Jan)">
+            </label>
+            <label>
+                <strong>Metric:</strong>
+                <select id="metricType">
+                    <option value="calls">Total Calls</option>
+                    <option value="success">Successful Calls</option>
+                    <option value="declines">Declined Calls</option>
+                    <option value="rate">Success Rate</option>
+                </select>
+            </label>
+            <label>
+                <strong>Month:</strong>
+                <select id="monthFilter">
+                    <option value="all">All Months</option>
+                </select>
+            </label>
+            <label>
+                <strong>Start Month:</strong>
+                <select id="startMonth">
+                    <option value="all">Any</option>
+                </select>
+            </label>
+            <label>
+                <strong>End Month:</strong>
+                <select id="endMonth">
+                    <option value="all">Any</option>
+                </select>
+            </label>
+            <label>
+                <strong>Caller:</strong>
+                <select id="callerFilter">
+                    <option value="all">All Callers</option>
+                </select>
+            </label>
+            <button id="clearData" style="padding: 10px 20px; border: 2px solid #D20A03; border-radius: 10px; background: white; color: #D20A03; font-weight: 500; cursor: pointer;">
+                <i class="fas fa-trash-alt"></i> Clear Data
+            </button>
+        </div>
+
+        <div class="stats-summary" id="statsSummary">
+            <div class="stats-grid" id="statsGrid"></div>
+            <div class="month-summary" id="monthSummary">
+                <h3 style="color: #3D5BA6; margin-bottom: 10px; font-family: 'Gotham', sans-serif;">Monthly Summary</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Total Calls</th>
+                            <th>Successful Calls</th>
+                            <th>Declined Calls</th>
+                            <th>Success Rate (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthSummaryTable"></tbody>
+                </table>
             </div>
         </div>
 
-        <div class="stats-card" id="statsCard">
-            <h2>Total Calls</h2>
-            <p id="totalCalls">0</p>
-        </div>
-        <div class="stats-card" id="successCard">
-            <h2>Successful Calls</h2>
-            <p id="successCalls">0</p>
-        </div>
-        <div class="stats-card" id="declineCard">
-            <h2>Declined Calls</h2>
-            <p id="declineCalls">0</p>
-        </div>
+        <div class="charts-grid" id="chartsContainer"></div>
     </div>
 
     <script>
         let processedData = JSON.parse(localStorage.getItem('callAnalyticsData')) || {};
+        let charts = {};
 
-        // Initialize Flatpickr for custom date range
-        flatpickr("#customRange", {
-            mode: "range",
-            dateFormat: "d M",
-            maxDate: "today",
-            defaultDate: ["2025-01-01", "2025-01-06"]
-        });
+        const viewReportsButton = document.getElementById('viewReports');
+        const errorDiv = document.getElementById('errorMessage');
+        const clearDataButton = document.getElementById('clearData');
+        const viewTypeSelect = document.getElementById('viewType');
+        const metricTypeSelect = document.getElementById('metricType');
+        const monthFilterSelect = document.getElementById('monthFilter');
+        const startMonthSelect = document.getElementById('startMonth');
+        const endMonthSelect = document.getElementById('endMonth');
+        const callerFilterSelect = document.getElementById('callerFilter');
 
-        // Populate month range dynamically
-        const monthRange = document.getElementById('monthRange');
-        const months = [...new Set(Object.values(processedData).flatMap(caller => 
-            Object.keys(caller).filter(date => !isNaN(new Date(date)))
-        ))].sort();
-        months.forEach(month => {
-            const option = document.createElement('option');
-            option.value = month;
-            option.textContent = new Date(month).toLocaleString('default', { month: 'long', year: 'numeric' });
-            monthRange.appendChild(option);
-        });
+        viewReportsButton.addEventListener('click', showReports);
+        clearDataButton.addEventListener('click', clearStoredData);
+        viewTypeSelect.addEventListener('change', () => { updateStats(); createCharts(); });
+        metricTypeSelect.addEventListener('change', createCharts);
+        monthFilterSelect.addEventListener('change', () => { updateStats(); createCharts(); });
+        startMonthSelect.addEventListener('change', createCharts);
+        endMonthSelect.addEventListener('change', createCharts);
+        callerFilterSelect.addEventListener('change', () => { updateStats(); createCharts(); });
 
-        // Update stats based on filters
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
+
+        function showReports() {
+            if (Object.keys(processedData).length === 0) {
+                showError('No data available. Please visit the Import page to upload a CSV file.');
+                return;
+            }
+
+            viewReportsButton.style.display = 'none';
+            document.getElementById('filters').style.display = 'flex';
+            document.getElementById('statsSummary').style.display = 'block';
+            updateFilters();
+            updateStats();
+            createCharts();
+        }
+
+        function clearStoredData() {
+            if (confirm('Are you sure you want to clear all stored data? This cannot be undone.')) {
+                processedData = {};
+                localStorage.removeItem('callAnalyticsData');
+                localStorage.removeItem('importedHashes');
+                document.getElementById('filters').style.display = 'none';
+                document.getElementById('statsSummary').style.display = 'none';
+                document.getElementById('chartsContainer').innerHTML = '';
+                document.getElementById('monthSummary').style.display = 'none';
+                viewReportsButton.style.display = 'block';
+                Object.values(charts).forEach(chart => chart.destroy());
+                charts = {};
+                showError('Stored data cleared. Visit Import page to upload a CSV file.');
+            }
+        }
+
+        function updateFilters() {
+            const allPeriods = new Set();
+            const allCallers = new Set();
+            Object.entries(processedData).forEach(([caller, periods]) => {
+                allCallers.add(caller);
+                Object.keys(periods).forEach(period => allPeriods.add(period));
+            });
+            const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
+                const dateA = a === 'Unknown' ? new Date(0) : new Date(a);
+                const dateB = b === 'Unknown' ? new Date(0) : new Date(b);
+                return dateA - dateB;
+            });
+            const sortedCallers = Array.from(allCallers).sort();
+
+            monthFilterSelect.innerHTML = '<option value="all">All Months</option>';
+            startMonthSelect.innerHTML = '<option value="all">Any</option>';
+            endMonthSelect.innerHTML = '<option value="all">Any</option>';
+            callerFilterSelect.innerHTML = '<option value="all">All Callers</option>';
+
+            sortedPeriods.forEach(period => {
+                const option = document.createElement('option');
+                option.value = period;
+                option.textContent = period;
+                monthFilterSelect.appendChild(option);
+                startMonthSelect.appendChild(option.cloneNode(true));
+                endMonthSelect.appendChild(option.cloneNode(true));
+            });
+
+            sortedCallers.forEach(caller => {
+                const option = document.createElement('option');
+                option.value = caller;
+                option.textContent = caller;
+                callerFilterSelect.appendChild(option);
+            });
+        }
+
         function updateStats() {
-            const month = monthRange.value;
-            const customRange = document.getElementById('customRange').value.split(' to ').map(d => new Date(d + ' 2025').toISOString().split('T')[0]);
-            let totalCalls = 0, successCalls = 0, declineCalls = 0;
+            const statsGrid = document.getElementById('statsGrid');
+            const monthSummaryTable = document.getElementById('monthSummaryTable');
+            const callerFilter = callerFilterSelect.value;
+            const selectedMonth = monthFilterSelect.value;
 
-            Object.values(processedData).forEach(caller => {
-                Object.entries(caller).forEach(([date, stats]) => {
-                    if ((month === 'all' || date === month) && 
-                        (!customRange[0] || (date >= customRange[0] && date <= (customRange[1] || date)))) {
-                        totalCalls += stats.calls;
-                        successCalls += stats.success;
-                        declineCalls += stats.declines;
+            let filteredData = processedData;
+            if (callerFilter !== 'all') {
+                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
+            }
+
+            let monthFilteredData = {};
+            Object.entries(filteredData).forEach(([caller, periods]) => {
+                monthFilteredData[caller] = {};
+                if (selectedMonth === 'all') {
+                    monthFilteredData[caller] = periods;
+                } else if (periods[selectedMonth]) {
+                    monthFilteredData[caller][selectedMonth] = periods[selectedMonth];
+                }
+            });
+
+            if (Object.keys(monthFilteredData).length === 0 || 
+                Object.values(monthFilteredData).every(periods => Object.keys(periods).length === 0)) {
+                statsGrid.innerHTML = `
+                    <div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">Top 1</div></div>
+                    <div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">Top 2</div></div>
+                    <div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">Top 3</div></div>
+                    <div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">Total Callers</div></div>
+                    <div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">Total Calls</div></div>
+                    <div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">Successful</div></div>
+                    <div class="stat-item"><div class="stat-value">N/A</div><div class="stat-label">Success Rate</div></div>
+                `;
+                monthSummaryTable.innerHTML = '';
+                document.getElementById('monthSummary').style.display = 'none';
+                return;
+            }
+
+            let totalCallers = 0;
+            let totalCalls = 0, totalSuccess = 0, totalDeclines = 0;
+            const monthTotals = {};
+
+            Object.entries(monthFilteredData).forEach(([caller, periods]) => {
+                if (Object.keys(periods).length > 0) {
+                    totalCallers++;
+                }
+                Object.entries(periods).forEach(([period, stats]) => {
+                    if (!monthTotals[period]) {
+                        monthTotals[period] = { calls: 0, success: 0, declines: 0 };
                     }
+                    monthTotals[period].calls += stats.calls;
+                    monthTotals[period].success += stats.success;
+                    monthTotals[period].declines += stats.declines;
+                    totalCalls += stats.calls;
+                    totalSuccess += stats.success;
+                    totalDeclines += stats.declines;
                 });
             });
 
-            document.getElementById('totalCalls').textContent = totalCalls;
-            document.getElementById('successCalls').textContent = successCalls;
-            document.getElementById('declineCalls').textContent = declineCalls;
+            const successRate = totalCalls > 0 ? ((totalSuccess / totalCalls) * 100).toFixed(1) : 0;
+
+            const topPerformers = [];
+            const callerStats = {};
+            let maxCalls = 0;
+            Object.entries(monthFilteredData).forEach(([caller, periods]) => {
+                let callerCalls = 0, callerSuccess = 0, totalCallsForCaller = 0;
+                Object.values(periods).forEach(stats => {
+                    callerCalls += stats.calls;
+                    callerSuccess += stats.success;
+                    totalCallsForCaller += stats.calls;
+                });
+                maxCalls = Math.max(maxCalls, callerCalls);
+                const callerRate = totalCallsForCaller > 0 ? (callerSuccess / totalCallsForCaller * 100) : 0;
+                callerStats[caller] = { calls: callerCalls, rate: callerRate };
+                topPerformers.push({ caller, calls: callerCalls, rate: callerRate });
+            });
+
+            topPerformers.forEach(perf => {
+                perf.normalizedScore = (perf.calls / (maxCalls > 0 ? maxCalls : 1) * 100 + perf.rate) / 2;
+            });
+            topPerformers.sort((a, b) => b.normalizedScore - a.normalizedScore).slice(0, 3);
+
+            statsGrid.innerHTML = `
+                <div class="stat-item" ${topPerformers[0] ? `onclick="callerFilterSelect.value='${topPerformers[0].caller}'; updateStats(); createCharts();"` : ''}>
+                    <div class="stat-value">${topPerformers[0] ? topPerformers[0].caller : 'N/A'}</div>
+                    <div class="stat-label">Top 1</div>
+                </div>
+                <div class="stat-item" ${topPerformers[1] ? `onclick="callerFilterSelect.value='${topPerformers[1].caller}'; updateStats(); createCharts();"` : ''}>
+                    <div class="stat-value">${topPerformers[1] ? topPerformers[1].caller : 'N/A'}</div>
+                    <div class="stat-label">Top 2</div>
+                </div>
+                <div class="stat-item" ${topPerformers[2] ? `onclick="callerFilterSelect.value='${topPerformers[2].caller}'; updateStats(); createCharts();"` : ''}>
+                    <div class="stat-value">${topPerformers[2] ? topPerformers[2].caller : 'N/A'}</div>
+                    <div class="stat-label">Top 3</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${totalCallers}</div>
+                    <div class="stat-label">Total Callers</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${totalCalls.toLocaleString()}</div>
+                    <div class="stat-label">Total Calls</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${totalSuccess.toLocaleString()}</div>
+                    <div class="stat-label">Successful</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${successRate}%</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+            `;
+
+            const sortedPeriods = Object.keys(monthTotals).sort((a, b) => {
+                const dateA = a === 'Unknown' ? new Date(0) : new Date(a);
+                const dateB = b === 'Unknown' ? new Date(0) : new Date(b);
+                return dateA - dateB;
+            });
+
+            monthSummaryTable.innerHTML = sortedPeriods.map(period => {
+                const stats = monthTotals[period];
+                const successRate = stats.calls > 0 ? ((stats.success / stats.calls) * 100).toFixed(1) : 0;
+                return `
+                    <tr>
+                        <td>${period}</td>
+                        <td>${stats.calls}</td>
+                        <td>${stats.success}</td>
+                        <td>${stats.declines}</td>
+                        <td>${successRate}%</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('monthSummary').style.display = sortedPeriods.length > 0 ? 'block' : 'none';
         }
 
-        monthRange.addEventListener('change', updateStats);
-        document.getElementById('customRange').addEventListener('change', updateStats);
-        updateStats();
+        function createCharts() {
+            const container = document.getElementById('chartsContainer');
+            const viewType = viewTypeSelect.value;
+            const metricType = metricTypeSelect.value;
+            const selectedMonth = monthFilterSelect.value;
+            const startMonth = startMonthSelect.value;
+            const endMonth = endMonthSelect.value;
+            const callerFilter = callerFilterSelect.value;
+
+            Object.values(charts).forEach(chart => chart.destroy());
+            charts = {};
+            container.innerHTML = '';
+
+            const allPeriods = new Set();
+            Object.values(processedData).forEach(periods => {
+                Object.keys(periods).forEach(period => allPeriods.add(period));
+            });
+            let filteredPeriods = Array.from(allPeriods).sort((a, b) => {
+                const dateA = a === 'Unknown' ? new Date(0) : new Date(a);
+                const dateB = b === 'Unknown' ? new Date(0) : new Date(b);
+                return dateA - dateB;
+            });
+
+            if (selectedMonth !== 'all') {
+                filteredPeriods = filteredPeriods.filter(period => period === selectedMonth);
+            } else if (startMonth !== 'all' || endMonth !== 'all') {
+                const startDate = startMonth === 'all' ? new Date(0) : new Date(startMonth);
+                const endDate = endMonth === 'all' ? new Date('9999-12-31') : new Date(endMonth);
+                filteredPeriods = filteredPeriods.filter(period => {
+                    const periodDate = period === 'Unknown' ? new Date(0) : new Date(period);
+                    return periodDate >= startDate && periodDate <= endDate;
+                });
+            }
+
+            let filteredData = processedData;
+            if (callerFilter !== 'all') {
+                filteredData = { [callerFilter]: processedData[callerFilter] || {} };
+            }
+
+            if (filteredPeriods.length === 0 || Object.keys(filteredData).length === 0) {
+                showError('No data available for the selected filters.');
+                return;
+            }
+
+            if (viewType === 'individual') {
+                createIndividualCharts(metricType, filteredPeriods, filteredData);
+            } else if (viewType === 'comparison') {
+                createComparisonChart(metricType, filteredPeriods, filteredData);
+            } else if (viewType === 'trend') {
+                createTrendChart(metricType, filteredPeriods, filteredData);
+            } else if (viewType === 'stacked') {
+                createStackedChart(filteredPeriods, filteredData);
+            }
+        }
+
+        function createIndividualCharts(metricType, filteredPeriods, filteredData) {
+            const container = document.getElementById('chartsContainer');
+
+            Object.entries(filteredData).forEach(([caller, periods]) => {
+                const chartDiv = document.createElement('div');
+                chartDiv.className = 'chart-container';
+                
+                const canvas = document.createElement('canvas');
+                const chartId = `chart-${caller.replace(/\s+/g, '-')}`;
+                canvas.id = chartId;
+
+                chartDiv.innerHTML = `
+                    <div class="chart-title">${caller}</div>
+                    <div class="chart-wrapper"></div>
+                    <button class="download-btn" onclick="downloadChart('${chartId}', '${caller} - ${getMetricLabel(metricType)}')"><i class="fas fa-download"></i> Download</button>
+                `;
+                
+                chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
+                container.appendChild(chartDiv);
+
+                const data = filteredPeriods.map(period => {
+                    const p = periods[period];
+                    if (!p) return null;
+                    switch(metricType) {
+                        case 'calls': return p.calls;
+                        case 'success': return p.success;
+                        case 'declines': return p.declines;
+                        case 'rate': return p.calls > 0 ? (p.success / p.calls * 100) : 0;
+                        default: return p.calls;
+                    }
+                });
+
+                const tooltipData = filteredPeriods.map(period => {
+                    const p = periods[period] || { calls: 0, success: 0, declines: 0 };
+                    return {
+                        calls: p.calls,
+                        success: p.success,
+                        declines: p.declines,
+                        rate: p.calls > 0 ? ((p.success / p.calls) * 100).toFixed(1) : 0
+                    };
+                });
+
+                const ctx = canvas.getContext('2d');
+                charts[chartId] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: filteredPeriods,
+                        datasets: [{
+                            label: getMetricLabel(metricType),
+                            data: data,
+                            borderColor: '#3D5BA6',
+                            backgroundColor: 'rgba(61, 91, 166, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#FDC503',
+                            pointBorderColor: '#3D5BA6',
+                            pointBorderWidth: 2,
+                            pointRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const index = context.dataIndex;
+                                        const stats = tooltipData[index];
+                                        return [
+                                            `Total Calls: ${stats.calls}`,
+                                            `Successful: ${stats.success}`,
+                                            `Declined: ${stats.declines}`,
+                                            `Success Rate: ${stats.rate}%`
+                                        ];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(152, 197, 237, 0.3)' },
+                                ticks: { color: '#3D5BA6', font: { family: 'Gotham' } }
+                            },
+                            x: {
+                                grid: { color: 'rgba(152, 197, 237, 0.3)' },
+                                ticks: { color: '#3D5BA6', font: { family: 'Gotham' } }
+                            }
+                        },
+                        onClick: (event, elements) => {
+                            if (elements.length > 0) {
+                                const index = elements[0].index;
+                                const month = filteredPeriods[index];
+                                monthFilterSelect.value = month;
+                                updateStats();
+                                createCharts();
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        function createComparisonChart(metricType, filteredPeriods, filteredData) {
+            const container = document.getElementById('chartsContainer');
+            
+            const chartDiv = document.createElement('div');
+            chartDiv.className = 'chart-container';
+            chartDiv.style.gridColumn = '1 / -1';
+            
+            const canvas = document.createElement('canvas');
+            const chartId = 'comparison-chart';
+            canvas.id = chartId;
+
+            chartDiv.innerHTML = `
+                <div class="chart-title">All Callers Comparison - ${getMetricLabel(metricType)}</div>
+                <div class="chart-wrapper"></div>
+                <button class="download-btn" onclick="downloadChart('${chartId}', 'Comparison - ${getMetricLabel(metricType)}')"><i class="fas fa-download"></i> Download</button>
+            `;
+            
+            chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
+            container.appendChild(chartDiv);
+
+            const datasets = Object.entries(filteredData).map(([caller, periods], index) => {
+                const colors = ['#3D5BA6', '#FDC503', '#98C5ED', '#D20A03'];
+                const color = colors[index % colors.length];
+                
+                const data = filteredPeriods.map(period => {
+                    const p = periods[period];
+                    if (!p) return null;
+                    switch(metricType) {
+                        case 'calls': return p.calls;
+                        case 'success': return p.success;
+                        case 'declines': return p.declines;
+                        case 'rate': return p.calls > 0 ? (p.success / p.calls * 100) : 0;
+                        default: return p.calls;
+                    }
+                });
+
+                const tooltipData = filteredPeriods.map(period => {
+                    const p = periods[period] || { calls: 0, success: 0, declines: 0 };
+                    return {
+                        calls: p.calls,
+                        success: p.success,
+                        declines: p.declines,
+                        rate: p.calls > 0 ? ((p.success / p.calls) * 100).toFixed(1) : 0
+                    };
+                });
+
+                return {
+                    label: caller,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: color + '20',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.4,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    tooltipData: tooltipData
+                };
+            });
+
+            const ctx = canvas.getContext('2d');
+            charts[chartId] = new Chart(ctx, {
+                type: 'line',
+                data: { labels: filteredPeriods, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20, font: { family: 'Gotham' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const dataset = context.dataset;
+                                    const stats = dataset.tooltipData[index];
+                                    return [
+                                        `${dataset.label}:`,
+                                        `Total Calls: ${stats.calls}`,
+                                        `Successful: ${stats.success}`,
+                                        `Declined: ${stats.declines}`,
+                                        `Success Rate: ${stats.rate}%`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3D5BA6', font: { family: 'Gotham' } } },
+                        x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3D5BA6', font: { family: 'Gotham' } } }
+                    },
+                    interaction: { intersect: false, mode: 'index' },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const month = filteredPeriods[index];
+                            monthFilterSelect.value = month;
+                            updateStats();
+                            createCharts();
+                        }
+                    }
+                }
+            });
+        }
+
+        function createTrendChart(metricType, filteredPeriods, filteredData) {
+            const container = document.getElementById('chartsContainer');
+            
+            const chartDiv = document.createElement('div');
+            chartDiv.className = 'chart-container';
+            chartDiv.style.gridColumn = '1 / -1';
+            
+            const canvas = document.createElement('canvas');
+            const chartId = 'trend-chart';
+            canvas.id = chartId;
+
+            chartDiv.innerHTML = `
+                <div class="chart-title">Monthly Trend - ${getMetricLabel(metricType)}</div>
+                <div class="chart-wrapper"></div>
+                <button class="download-btn" onclick="downloadChart('${chartId}', 'Trend - ${getMetricLabel(metricType)}')"><i class="fas fa-download"></i> Download</button>
+            `;
+            
+            chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
+            container.appendChild(chartDiv);
+
+            const data = filteredPeriods.map(period => {
+                let total = 0;
+                let totalCalls = 0;
+                Object.values(filteredData).forEach(callerData => {
+                    const stats = callerData[period];
+                    if (stats) {
+                        switch(metricType) {
+                            case 'calls': total += stats.calls; break;
+                            case 'success': total += stats.success; break;
+                            case 'declines': total += stats.declines; break;
+                            case 'rate':
+                                totalCalls += stats.calls;
+                                total += stats.success;
+                                break;
+                        }
+                    }
+                });
+                if (metricType === 'rate') {
+                    return totalCalls > 0 ? (total / totalCalls * 100) : 0;
+                }
+                return total;
+            });
+
+            const tooltipData = filteredPeriods.map(period => {
+                let calls = 0, success = 0, declines = 0;
+                Object.values(filteredData).forEach(callerData => {
+                    const stats = callerData[period];
+                    if (stats) {
+                        calls += stats.calls;
+                        success += stats.success;
+                        declines += stats.declines;
+                    }
+                });
+                return {
+                    calls: calls,
+                    success: success,
+                    declines: declines,
+                    rate: calls > 0 ? ((success / calls) * 100).toFixed(1) : 0
+                };
+            });
+
+            const ctx = canvas.getContext('2d');
+            charts[chartId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: filteredPeriods,
+                    datasets: [{
+                        label: getMetricLabel(metricType),
+                        data: data,
+                        borderColor: '#3D5BA6',
+                        backgroundColor: 'rgba(61, 91, 166, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#FDC503',
+                        pointBorderColor: '#3D5BA6',
+                        pointBorderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const stats = tooltipData[index];
+                                    return [
+                                        `Total Calls: ${stats.calls}`,
+                                        `Successful: ${stats.success}`,
+                                        `Declined: ${stats.declines}`,
+                                        `Success Rate: ${stats.rate}%`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3D5BA6', font: { family: 'Gotham' } } },
+                        x: { grid: { color: 'rgba(152, 197, 237, 0.3)' }, ticks: { color: '#3D5BA6', font: { family: 'Gotham' } } }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const month = filteredPeriods[index];
+                            monthFilterSelect.value = month;
+                            updateStats();
+                            createCharts();
+                        }
+                    }
+                }
+            });
+        }
+
+        function createStackedChart(filteredPeriods, filteredData) {
+            const container = document.getElementById('chartsContainer');
+            
+            const chartDiv = document.createElement('div');
+            chartDiv.className = 'chart-container';
+            chartDiv.style.gridColumn = '1 / -1';
+            
+            const canvas = document.createElement('canvas');
+            const chartId = 'stacked-chart';
+            canvas.id = chartId;
+
+            chartDiv.innerHTML = `
+                <div class="chart-title">Call Outcomes by Caller</div>
+                <div class="chart-wrapper"></div>
+                <button class="download-btn" onclick="downloadChart('${chartId}', 'Call Outcomes by Caller')"><i class="fas fa-download"></i> Download</button>
+            `;
+            
+            chartDiv.querySelector('.chart-wrapper').appendChild(canvas);
+            container.appendChild(chartDiv);
+
+            const datasets = [
+                {
+                    label: 'Successful Calls',
+                    data: filteredPeriods.map(period => {
+                        let total = 0;
+                        Object.values(filteredData).forEach(callerData => {
+                            const stats = callerData[period];
+                            if (stats) total += stats.success;
+                        });
+                        return total;
+                    }),
+                    backgroundColor: '#3D5BA6',
+                    borderColor: '#3D5BA6',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Declined Calls',
+                    data: filteredPeriods.map(period => {
+                        let total = 0;
+                        Object.values(filteredData).forEach(callerData => {
+                            const stats = callerData[period];
+                            if (stats) total += stats.declines;
+                        });
+                        return total;
+                    }),
+                    backgroundColor: '#D20A03',
+                    borderColor: '#D20A03',
+                    borderWidth: 1
+                }
+            ];
+
+            const tooltipData = filteredPeriods.map(period => {
+                let calls = 0, success = 0, declines = 0;
+                Object.values(filteredData).forEach(callerData => {
+                    const stats = callerData[period];
+                    if (stats) {
+                        calls += stats.calls;
+                        success += stats.success;
+                        declines += stats.declines;
+                    }
+                });
+                return {
+                    calls: calls,
+                    success: success,
+                    declines: declines,
+                    rate: calls > 0 ? ((success / calls) * 100).toFixed(1) : 0
+                };
+            });
+
+            const ctx = canvas.getContext('2d');
+            charts[chartId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: filteredPeriods,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20, font: { family: 'Gotham' } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const stats = tooltipData[index];
+                                    return [
+                                        `${context.dataset.label}: ${context.raw}`,
+                                        `Total Calls: ${stats.calls}`,
+                                        `Successful: ${stats.success}`,
+                                        `Declined: ${stats.declines}`,
+                                        `Success Rate: ${stats.rate}%`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            stacked: true,
+                            grid: { color: 'rgba(152, 197, 237, 0.3)' },
+                            ticks: { color: '#3D5BA6', font: { family: 'Gotham' } }
+                        },
+                        x: {
+                            stacked: true,
+                            grid: { color: 'rgba(152, 197, 237, 0.3)' },
+                            ticks: { color: '#3D5BA6', font: { family: 'Gotham' } }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const month = filteredPeriods[index];
+                            monthFilterSelect.value = month;
+                            updateStats();
+                            createCharts();
+                        }
+                    }
+                }
+            });
+        }
+
+        function getMetricLabel(metricType) {
+            switch(metricType) {
+                case 'calls': return 'Total Calls';
+                case 'success': return 'Successful Calls';
+                case 'declines': return 'Declined Calls';
+                case 'rate': return 'Success Rate (%)';
+                default: return 'Total Calls';
+            }
+        }
+
+        function downloadChart(chartId, title) {
+            const canvas = document.getElementById(chartId);
+            html2canvas(canvas).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `${title}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        if (Object.keys(processedData).length > 0) {
+            showReports();
+        } else {
+            viewReportsButton.style.display = 'block';
+            document.getElementById('statsSummary').style.display = 'none';
+            showError('No data available. Please visit the Import page to upload a CSV file.');
+        }
     </script>
 </body>
 </html>
