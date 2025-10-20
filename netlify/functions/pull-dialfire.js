@@ -11,7 +11,7 @@ exports.handler = async (event, context) => {
   try {
     let allCalls = [];
     let page = 1;
-    const lastPullDate = process.env.LAST_PULL_DATE || '2023-01-01'; // Adjust start date
+    const lastPullDate = process.env.LAST_PULL_DATE || '2025-10-01'; // Adjust start date
     while (true) {
       const response = await axios.get(`https://app.dialfire.com/api/campaigns/${campaignId}/connections?page=${page}&per_page=100&since=${lastPullDate}`, {
         headers: { Authorization: token }
