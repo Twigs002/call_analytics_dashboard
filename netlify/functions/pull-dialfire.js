@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 exports.handler = async (event, context) => {
-  const token = process.env.DIALFIRE_TOKEN;
+  const token = process.env.DIALFIRE_KEY_CLIENTHUB_MASTER;
   const campaignId = 'BWHH6K3MSJGETZ5S'; // Your campaign ID
 
   if (!token) {
