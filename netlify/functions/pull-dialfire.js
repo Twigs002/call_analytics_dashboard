@@ -1,4 +1,3 @@
-// netlify/functions/pull-dialfire.js
 const axios = require('axios');
 
 exports.handler = async (event, context) => {
@@ -30,8 +29,14 @@ exports.handler = async (event, context) => {
       page++;
     }
 
-    // === BUILD FRESH DATA FROM API ONLY ===
-    const processedData = {};
+    // === MERGE WITH EXISTING DATA (CSV or previous sync) ===
+    let processedData = {};
+    if (event.httpMethod === 'POST' && event.body) {
+      try {
+        const body = JSON.parse(event.body);
+        Object.assign(processedData, body.existingData || {});
+      } catch (e) {}
+    }
 
     allCalls.forEach(call => {
       const caller = call.agent_name || 'Unknown';
@@ -51,12 +56,12 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         processedData,
         newPullDate,
         totalCalls: allCalls.length,
-        lastSync: new Date().toISOString()
+        lastSync: new Date().toISOString(),
+        source: 'dialfire'
       })
     };
 
