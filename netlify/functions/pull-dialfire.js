@@ -2,10 +2,10 @@ const axios = require('axios');
 
 exports.handler = async (event, context) => {
   const token = process.env.DIALFIRE_KEY_CLIENTHUB_MASTER;
-  const campaignId = 'BWHH6K3MSJGETZ5S';
+  const campaignId = 'N4UMU8GPQKZMRM93';
 
   if (!token) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Missing DIALFIRE_TOKEN' }) };
+    return { statusCode: 400, body: JSON.stringify({ error: 'Missing DIALFIRE_KEY_CLIENTHUB_MASTER' }) };
   }
 
   try {
