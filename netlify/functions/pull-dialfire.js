@@ -1,7 +1,8 @@
+// netlify/functions/pull-dialfire.js
 const axios = require('axios');
 
 exports.handler = async (event, context) => {
-  const token = process.env.DIALFIRE_KEY_NO_ANSWER;;
+  const token = process.env.DIALFIRE_KEY_NO_ANSWER;
   const campaignId = 'N4UMU8GPQKZMRM93';
 
   if (!token) {
@@ -18,7 +19,8 @@ exports.handler = async (event, context) => {
         `https://app.dialfire.com/api/campaigns/${campaignId}/connections`,
         {
           params: { page, per_page: 100, since: lastPullDate },
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: token },
+          timeout: 15000
         }
       );
 
@@ -29,7 +31,6 @@ exports.handler = async (event, context) => {
       page++;
     }
 
-    // === MERGE WITH EXISTING DATA (CSV or previous sync) ===
     let processedData = {};
     if (event.httpMethod === 'POST' && event.body) {
       try {
@@ -41,24 +42,19 @@ exports.handler = async (event, context) => {
     allCalls.forEach(call => {
       const caller = call.agent_name || 'Unknown';
       const period = call.created_at?.split('T')[0] || 'Unknown';
-      
       if (!processedData[caller]) processedData[caller] = {};
       if (!processedData[caller][period]) {
         processedData[caller][period] = { calls: 0, success: 0, declines: 0 };
       }
-
       processedData[caller][period].calls += 1;
       if (call.status_detail === 'success') processedData[caller][period].success += 1;
       else if (call.status_detail === 'declined') processedData[caller][period].declines += 1;
     });
 
-    const newPullDate = new Date().toISOString().split('T')[0];
-
     return {
       statusCode: 200,
       body: JSON.stringify({
         processedData,
-        newPullDate,
         totalCalls: allCalls.length,
         lastSync: new Date().toISOString(),
         source: 'dialfire'
@@ -66,11 +62,11 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('Dialfire sync failed:', error.response?.data || error.message);
+    console.error('Dialfire Error:', error.response?.data || error.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ 
-        error: 'Failed to sync with Dialfire', 
+        error: 'Sync failed', 
         details: error.message 
       })
     };
