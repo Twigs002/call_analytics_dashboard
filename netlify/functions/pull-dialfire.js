@@ -12,13 +12,13 @@ exports.handler = async (event, context) => {
   try {
     let allCalls = [];
     let page = 1;
-    const lastPullDate = process.env.LAST_PULL_DATE || '2025-10-01T00:00:00Z';
+    const since = '2025-10-28T00:00:00Z';  // FIXED: Only pull from Oct 28
 
     while (true) {
       const response = await axios.get(
         `https://app.dialfire.com/api/campaigns/${campaignId}/connections`,
         {
-          params: { page, per_page: 100, since: lastPullDate },
+          params: { page, per_page: 100, since },
           headers: { Authorization: token },
           timeout: 15000
         }
@@ -57,17 +57,19 @@ exports.handler = async (event, context) => {
         processedData,
         totalCalls: allCalls.length,
         lastSync: new Date().toISOString(),
-        source: 'dialfire'
+        source: 'dialfire',
+        since: '2025-10-28'  // For debugging
       })
     };
 
   } catch (error) {
     console.error('Dialfire Error:', error.response?.data || error.message);
     return {
-      statusCode: 500,
-      body: JSON.stringify({ 
-        error: 'Sync failed', 
-        details: error.message 
+      statusCode: error.response?.status || 500,
+      body: JSON.stringify({
+        error: 'Sync failed',
+        status: error.response?.status,
+        details: error.response?.data || error.message
       })
     };
   }
